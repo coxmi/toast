@@ -1,0 +1,13 @@
+{
+    "compilerOptions": {
+        "outDir": "./lib",
+        "module": "es2020",
+        "target": "es2015",
+        "moduleResolution": "node",
+        "esModuleInterop": true,
+        "sourceMap": true
+    },
+    "include": [
+        "src/**/*.ts"
+    ]
+}

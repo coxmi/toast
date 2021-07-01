@@ -1,0 +1,22 @@
+{
+  "name": "webpack-static",
+  "version": "0.0.1",
+  "license": "MIT",
+  "author": "Michael Cox <michael@se-make.co.uk>",
+  "description": "tiny static site generator for webpack",
+  "main": "lib/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rm -rf lib",
+    "test": "ava",
+    "snapshots": "ava --update-snapshots"
+  },
+  "devDependencies": {
+    "ava": "^3.15.0",
+    "fast-glob": "^3.2.6",
+    "fs-extra": "^10.0.0",
+    "typescript": "^4.3.5",
+    "webpack": "^5.41.1"
+  }
+}
