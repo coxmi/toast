@@ -8,7 +8,7 @@ import Plugin from './../lib/index.js'
 
 
 const dir = path.dirname(import.meta.url.replace(/^file:\/\//, ''))
-const fixture = input => path.resolve(dir, './fixtures', input)
+const fixture = (...input) => path.resolve(dir, './fixtures', ...input)
 
 
 const config = {
@@ -86,8 +86,10 @@ const snapshots = (configs = []) => {
 
 snapshots([
     {
-        name : 'esmodules',
+        name : 'route-basic',
         input : 'index.js',
-        pluginOptions : {}
+        pluginOptions : { 
+        	routes : fixture('route-basic', './template-*.js') 
+        }
     }
 ])

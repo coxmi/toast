@@ -6,6 +6,9 @@
 *[Tt]humbs.db
 *.Trashes
 
+# Ignore private files
+/idea
+
 # Ignore node modules and errors
 
 node_modules

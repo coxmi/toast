@@ -2,7 +2,7 @@
     "compilerOptions": {
         "outDir": "./lib",
         "module": "es2020",
-        "target": "es2015",
+        "target": "es2019",
         "moduleResolution": "node",
         "esModuleInterop": true,
         "sourceMap": true
