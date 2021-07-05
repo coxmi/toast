@@ -10,7 +10,7 @@ export const sha1 = (string: string) => crypto.createHash('sha1').update(string)
 
 
 export default (subdirectory: string = '') => {
-	
+	 
 	const cacheDir = path.join(findCacheDir(), subdirectory)
 
 	async function set(key:string, contents:any): Promise<void> {
@@ -19,7 +19,7 @@ export default (subdirectory: string = '') => {
 		await fs.outputJson(filePath, contents)
 	}
 
-	async function get(key:string): Promise<any> {
+	async function get(key:string): Promise<string|null> {
 		const filePath = path.join(cacheDir, `${md5(key)}.json`)
 		try {
 			return await fs.readJson(filePath)	

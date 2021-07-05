@@ -18,6 +18,5 @@ report.*.json
 
 # Ignore output or test coverage
 
-lib
+dist
 coverage
-test/fixtures/dist

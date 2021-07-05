@@ -1,13 +1,12 @@
 
-export const permalink = () => {}
-
-export const data = async () => {}
+const submodule = require('./submodule')
 
 export const render = async () => {
 	return `<html>
 		<head></head>
 		<body>
-			template 1
+			common js
+			${submodule.text}
 		</body>
 	</html>`
 }
