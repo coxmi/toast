@@ -17,10 +17,10 @@ webpack.config.js:
 
 ```js
 export default {
-	output: {
-	    path: outputDir,
-	    filename: '[name].js',
-	}
+    output: {
+        path: outputDir,
+        filename: '[name].js',
+    }
     plugins: [
         new StaticSitePlugin({ 
             pages: './pages/**.js' 
@@ -39,83 +39,80 @@ template file, e.g. (pages/latest.js):
 // export your data
 export const content = fetch('https://xkcd.com/info.0.json').then((res) => res.json())
 
-// pretty output urls
-export const url = content => '/latest/'
+// set pretty output urls
+export const url = (content, meta) => '/latest/'
 
-// render your html (or css, json, xml, rss, svg, etc.)
-export const html = content => 
-	`<!DOCTYPE html>
-	<html>
-		<body>
-			<h1>${content.title}</h1>
-			<img src="${ content.img }">
-		</body>
-	</html>`
+// render your html (or css, json, xml, rss, svg, or any other string-based format)
+export const html = (content, meta) => 
+    `<!DOCTYPE html>
+    <html>
+        <body>
+            <h1>${content.title}</h1>
+            <img src="${content.img}">
+        </body>
+    </html>`
 ```
 
 ### collections
 
-export an array using `collection`, and a page will be created for each item
+export an iterable using `collection`, and a page will be created for each item.
 
 template file, e.g. (pages/drinks.js):
 
 ```js
-// promise or function returning an iterator
+
 export const collection = fetch('https://thecocktaildb.com/api/json/v1/1/filter.php?i=Mango').then((res) => res.json())
 
-// each item is passed into the first argument
 export const url = (content, meta) => `/drinks/${content.idDrink}/`
 
-// additional information is also provided under the second argument
 export const html = (content, meta) => 
-	`<!DOCTYPE html>
-	<html>
-		<body>
-			<h1>${content.strDrink}</h1>
-			<img src="${content.strDrinkThumb}">
-		</body>
-	</html>`
+    `<!DOCTYPE html>
+    <html>
+        <body>
+            <h1>${content.strDrink}</h1>
+            <img src="${content.strDrinkThumb}">
+        </body>
+    </html>`
 
 ```
 
 ### pagination
 
-the same as a collection, just add a `perPage` export variable:
+the same as a collection, just add a `perPage` export variable.
 
 template file, e.g. (pages/blog.js):
 
 ```js
 export const collection = [
-	{ url : 'hello-world' },
-	{ url : 'how-i-only-used-1-million-dependencies-to-build-my-new-blog' },
-	{ url : 'who-needs-reactjs-anyway' },
-	{ url : 'framework-fatigue-in-2041' },
-	{ url : 'ai-generated-webpack-config' },
-	{ url : 'the-singularity-came-from-css-houdini' }
+    { url: 'hello-world' },
+    { url: 'how-i-only-used-1-million-dependencies-to-build-my-new-blog' },
+    { url: 'who-needs-reactjs-anyway' },
+    { url: 'framework-fatigue-in-2041' },
+    { url: 'ai-generated-webpack-config' },
+    { url: 'the-singularity-came-from-css-houdini' }
 ]
 
 // split posts into chunks of five per page
 export const perPage = 5 
 
-// `/posts` for page 1, and `/posts/2…` for others
-export const url = (content, { currentPage }) => {
-	return (currentPage === 1)
-    	? `/posts/`
-        : `/posts/${currentPage}/`
+// "/posts" for first page, and "/posts/2" for others
+export const url = (content, meta) => {
+    return (currentPage === 1)
+        ? `/posts/`
+        : `/posts/${meta.currentPage}/`
 }
 
-// lists all items per page
-export const html = (content, { currentPage, lastPage }) => 
-	`<!DOCTYPE html>
-	<html>
-		<body>
-			<h1>Page ${currentPage} of ${lastPage}</h1>
-			<ul>
-				${ content.map(post => 
-					`<li><a href="${post.url}">${post.url}</a></li>`
-				).join('') }
-			</ul>
-		</body>
-	</html>`
+export const html = (content, meta) => 
+    `<!DOCTYPE html>
+    <html>
+        <body>
+            <h1>Page ${meta.currentPage} of ${meta.lastPage}</h1>
+            <ul>
+                ${content.map(post => 
+                    `<li><a href="${post.url}">${post.url}</a></li>`
+                ).join('')}
+            </ul>
+        </body>
+    </html>`
 ```
 
