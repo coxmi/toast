@@ -78,7 +78,7 @@ export const html = (content, meta) =>
 
 ### pagination
 
-the same as a collection, just add a `perPage` export variable.
+the same as a collection, just export an integer with `perPage`.
 
 template file, e.g. (pages/blog.js):
 
@@ -115,4 +115,18 @@ export const html = (content, meta) =>
         </body>
     </html>`
 ```
+
+
+## render functions
+
+the two render functions (`html` and `url`) are called with:
+
+- `content` – includes anything exported by either the `content` or `collection` export.
+- `meta` – includes a number of helper variables, including: `output`, `outputDir`, `relativeRoot`, `currentPage`, `firstPage`, `lastPage`, `previousPage`, `nextPage`, `firstIndexOnPage`, `lastIndexOnPage`, `firstItemOnPage`, `lastItemOnPage` 
+
+Caveats:
+
+- With a paginated route, content will be a list of collection items.
+- When a `collection` is exported, `content` is not passed to the render functions
+
 
