@@ -1,12 +1,14 @@
 
 import { h } from 'preact'
-import { default as html } from 'preact-render-to-string'
+import render from 'preact-render-to-string'
 
-export const render = async () => {
+export const url = '/'
+
+export const html = () => {
 	return `<html>
 		<head></head>
 		<body>
-			${html(<div>template-preact</div>)}
+			${render(<h1>jsx-rendered</h1>)}
 		</body>
 	</html>`
 }

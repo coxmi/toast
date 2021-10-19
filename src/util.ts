@@ -22,3 +22,20 @@ export function curry(func) {
         }
     }
 }
+
+
+export function isIterable(x) {  
+    return x && isFunction(x[Symbol.iterator])
+}
+
+export function isArray(x) {
+    return Array.isArray(x)
+}
+
+export function isFunction(x) {
+    return !!(x && x.constructor && x.call && x.apply)
+}
+
+export const chunkArray = (array: [], n: number) => {
+    return Array.from(Array(Math.ceil(array.length/n)), (_,i) => array.slice(i*n, i*n+n))
+}

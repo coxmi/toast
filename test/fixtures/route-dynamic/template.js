@@ -1,7 +1,9 @@
 
-export const render = async () => {
+export const url = '/'
 
-	const submodule = await import('./submodule.js')
+export const html = async () => {
+
+	const submodule = (await import('./submodule.js')).default	
 
 	return `<html>
 		<head></head>

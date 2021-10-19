@@ -1,7 +1,10 @@
 
-const submodule = require('./submodule')
+// cjs require needs .default
+const submodule = require('./submodule').default
 
-export const render = async () => {
+const url = '/'
+
+const html = () => {
 	return `<html>
 		<head></head>
 		<body>
@@ -9,4 +12,9 @@ export const render = async () => {
 			${submodule.text}
 		</body>
 	</html>`
+}
+
+module.exports = {
+	url,
+	html
 }
