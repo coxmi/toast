@@ -11,7 +11,9 @@
     "url": "git+https://github.com/coxmi/toast.git"
   },
   "keywords": [
-    "static site generator", "webpack", "ssg"
+    "static site generator",
+    "webpack",
+    "ssg"
   ],
   "files": [
     "README.md",
@@ -52,6 +54,7 @@
     "typescript": "^4.3.5"
   },
   "dependencies": {
+    "clear-module": "^4.1.1",
     "fast-glob": "^3.2.6",
     "find-cache-dir": "^3.3.1",
     "fs-extra": "^10.0.0"

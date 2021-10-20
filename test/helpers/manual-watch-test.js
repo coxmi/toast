@@ -42,7 +42,7 @@ watch({
         },
         plugins: [
             new Plugin({ 
-                routes: fixture('route-jsx/template-*.js') 
+                pages: fixture('route-jsx/template-*.js') 
             })
         ]
     }

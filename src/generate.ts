@@ -1,10 +1,10 @@
 
 import fs from 'fs-extra'
 import path from 'path'
+import clearModule from 'clear-module'
 import { applyHook } from './hooks.js'
 import { createPage, staticpath } from './pages.js'
 import { isFunction, isIterable, isArray, chunkArray } from './util.js'
-
 
 type Map = {
     [key: string]: string
@@ -20,8 +20,13 @@ export async function staticGen(outputDir: string, entrypoints: Map, compiledFil
 	const processed = await Promise.all(routes.map(async route => {
 		const filepath = entrypoints[route]
 		if (!filepath) throw new Error(`No module found at "${filepath}"`)
-		const compiled = await import(filepath)
-		return await processRoute(route, compiled, generator)
+		clearModule(filepath)
+		const exists = await fs.pathExists(filepath)
+		if (exists) {
+			const compiled = await import(filepath)
+			return await processRoute(route, compiled, generator)
+		}
+		return false
 	}))
 
 	// delete all generated js files
@@ -164,8 +169,13 @@ function createGenerator(outputDir = '') {
 			output : absoluteFromOutput(url),
 			outputDir : outputDir,
 			relativeRoot : rootFrom(url),
+			relative : (from: string):string => path.join(rootFrom(url), from),
 			...meta,
 		}
+
+		// allow access to meta and content from global functions before rendering the page
+		global.content = () => content
+		global.meta = () => pageMeta
 
 		const output = await fnHtml(content, pageMeta)
 		const single = [url, output]

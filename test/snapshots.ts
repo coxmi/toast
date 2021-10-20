@@ -62,7 +62,7 @@ snapshot({
         },
         plugins: [
             new Plugin({ 
-                routes: fixture('route-assets/template.js')
+                pages: fixture('route-assets/template.js')
             })
         ]
     }
@@ -73,7 +73,7 @@ snapshot({
     config: {
         plugins: [
             new Plugin({ 
-                routes: fixture('route-cjs/template.js') 
+                pages: fixture('route-cjs/template.js') 
             })
         ]
     }
@@ -84,7 +84,7 @@ snapshot({
     config: {
         plugins: [
             new Plugin({ 
-                routes: fixture('route-dynamic/template.js') 
+                pages: fixture('route-dynamic/template.js') 
             })
         ]
     }
@@ -95,7 +95,7 @@ snapshot({
     config: {
         plugins: [
             new Plugin({ 
-                routes: fixture('route-esm/template-*.js')
+                pages: fixture('route-esm/template-*.js')
             })
         ]
     }
@@ -106,7 +106,7 @@ snapshot({
     config: {
         plugins: [
             new Plugin({ 
-                routes: fixture('route-external/template.js')
+                pages: fixture('route-external/template.js')
             })
         ]
     }
@@ -126,7 +126,7 @@ snapshot({
         },
         plugins: [
             new Plugin({ 
-                routes: fixture('route-jsx/template-*.js') 
+                pages: fixture('route-jsx/template-*.js') 
             })
         ]
     }
@@ -137,7 +137,7 @@ snapshot({
     config: {
         plugins: [
             new Plugin({ 
-                routes: fixture('route-paged/template.js') 
+                pages: fixture('route-paged/template.js') 
             })
         ]
     }
