@@ -12,6 +12,8 @@ transpile, generate, or concatenate your templates however you want, toast is ju
 
 ## Setup
 
+### <b>Note: This library is a work in progress!</b>
+
 Install `toast`:
 
 ```bash
@@ -30,7 +32,7 @@ module.exports = {
     output: {
         path: outputDir,
         filename: '[name].js',
-    }
+    },
     plugins: [
         new ToastPlugin({ 
             pages: './pages/**.js' 

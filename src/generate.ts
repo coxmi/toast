@@ -21,7 +21,7 @@ export async function staticGen(outputDir: string, entrypoints: Map, compiledFil
 		const filepath = entrypoints[route]
 		if (!filepath) throw new Error(`No module found at "${filepath}"`)
 		const compiled = await import(filepath)
-		return await processRoute(compiled, generator)
+		return await processRoute(route, compiled, generator)
 	}))
 
 	// delete all generated js files
@@ -49,10 +49,10 @@ export async function staticGen(outputDir: string, entrypoints: Map, compiledFil
 }
 
 
-async function processRoute(route, generator) {
+async function processRoute(name, route, generator) {
 
 	const messages = []
-	if (validateRoute(route) !== true) return false
+	if (validateRoute(name, route) !== true) return false
 
 	const hasSingleProp = route.content !== undefined
 	const hasCollectionProp = route.collection !== undefined
@@ -185,10 +185,10 @@ function createGenerator(outputDir = '') {
 }
 
 
-function validateRoute({ html, url, single, collection, perPage }) : true {
+function validateRoute(name, { html, url, single, collection, perPage }) : true {
 
 	const messages = []
-	const throwEarly = () => messages.length && throws(messages)
+	const throwEarly = () => messages.length && throws(`${name}`, messages)
 
 	const hasCollectionProp = collection !== undefined
 	const isStringUrl = typeof url === 'string'
@@ -217,7 +217,7 @@ function validateRoute({ html, url, single, collection, perPage }) : true {
 	if (typeof perPage === 'number' && perPage <= 0)
 		messages.push(`export 'perPage' must be positive`)
 
-	if (messages.length) throws(messages)
+	if (messages.length) throws(`${name}`, messages)
 	
 	return true
 }
@@ -241,11 +241,12 @@ function pageVars(currentIndex?: number, perPage?: number, totalItems?: number) 
 	}
 }
 
-function throws(array: string[]) :void {
+function throws(main: string, array: string[]) :void {
+	const first = main ? main + ': ' : ''
 	const messages = array
-		.map(string => `•\t${string}`)
-		.join('\n')
-	throw new Error(messages)
+		.map(string => `${string}`)
+		.join(', ')
+	throw new Error(first + messages)
 }
 
 function fn(x) {

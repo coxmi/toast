@@ -8,7 +8,7 @@ import EntryPlugin from 'webpack/lib/EntryPlugin'
 
 
 interface PluginOptions {
-	routes: string|string[]
+	pages: string|string[]
 }
 
 const PLUGIN_NAME = "ToastPlugin"
@@ -17,8 +17,8 @@ export default class ToastPlugin {
 
 	private globs: string[]
 
-	constructor({ routes = [] }: PluginOptions) {
-		this.globs = [routes].flat()
+	constructor({ pages = [] }: PluginOptions) {
+		this.globs = [pages].flat()
 	}
 
 	absoluteRoutePaths(globs, relativeTo) {
@@ -43,6 +43,11 @@ export default class ToastPlugin {
 
 		// add template routes as new entry points
 		const routes = this.absoluteRoutePaths(this.globs, compiler.context)
+
+		if (!routes.length) {
+			throw new Error(`No templates found using: ${this.globs.join(', ')}`)
+		}
+
 		routes.map(file => {
 			new EntryPlugin(compiler.context, file, path.parse(file).name).apply(compiler)
 		})
@@ -88,6 +93,7 @@ function webpackEditConfiguration(compiler: Compiler) {
 	compiler.options.output.publicPath = ''
 	compiler.options.optimization = {
 		...compiler.options.optimization,
-		mangleExports: false
+		mangleExports: false,
+		minimize: false,
 	}
 }
