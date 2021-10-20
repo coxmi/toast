@@ -1,7 +1,8 @@
+#toast
 
 ## A really tiny static site generator plugin for webpack
 
-transpile, generate, or concatenate your templates however you want, this plugin is just a step in your build process. It’s flexible enough to use `ejs` for your `sitemap.xml`, and `jsx` for your `<head>`, and turn external data sources into a static site without specifying your development environment.
+transpile, generate, or concatenate your templates however you want, toast is just a step in your build process. It’s flexible enough to use `ejs` for your `sitemap.xml`, and `jsx` for your `<head>`, and turn external data sources into a static site without specifying your development environment.
 
 - bring your own transpilation (using [webpack](https://webpack.js.org/))
 - just return a `string` in your template render function
@@ -9,20 +10,29 @@ transpile, generate, or concatenate your templates however you want, this plugin
 - fetch data from anywhere: just export a `Promise` or `async` function
 
 
-## basic example
+## Setup
 
-### config
+Install `toast`:
 
-webpack.config.js:
+```bash
+npm install toast-static --save-dev
+```
+
+### Configure webpack
+
+Add the plugin to your `webpack.config.js`, and set the `pages` option to point to your template files (use a path, glob, or array).
+
 
 ```js
-export default {
+const ToastPlugin = require('toast-static')
+
+module.exports = {
     output: {
         path: outputDir,
         filename: '[name].js',
     }
     plugins: [
-        new StaticSitePlugin({ 
+        new ToastPlugin({ 
             pages: './pages/**.js' 
         }),
         ...
@@ -30,17 +40,29 @@ export default {
 }
 ```
 
+## Templates
 
-### pages
+A template is a simple js file that exports a set of properties:
 
-template file, e.g. (pages/latest.js):
+Export name | Valid signatures | Use |
+:--- | :--- | :---
+`html` | `function => string` |  Render the page content
+`url` | `string|function => string` | Set the page url
+`content`<br>(optional) | `function|Promise` | Fetch data. This function's return value is passed to `html` when the page is rendered.
+`collection`<br>(optional) | `function|Promise => []` | Fetch a set of items. Each item is passed to the `html` function in turn to generate a set of pages.
+`perPage`<br>(optional) | `number` |  split a `collection` into chunks of a certain size, for pagination.
+
+
+### Single page
+
+Example template `pages/latest.js`:
 
 ```js
 // export your data
 export const content = fetch('https://xkcd.com/info.0.json').then((res) => res.json())
 
-// set pretty output urls
-export const url = (content, meta) => '/latest/'
+// set your output url
+export const url = '/latest/'
 
 // render your html (or css, json, xml, rss, svg, or any other string-based format)
 export const html = (content, meta) => 
@@ -53,14 +75,13 @@ export const html = (content, meta) =>
     </html>`
 ```
 
-### collections
+### Collections
 
-export an iterable using `collection`, and a page will be created for each item.
+Export an iterable to `collection`, and a page will be generated for each item. 
 
-template file, e.g. (pages/drinks.js):
+Example template `pages/drinks.js`:
 
 ```js
-
 export const collection = fetch('https://thecocktaildb.com/api/json/v1/1/filter.php?i=Mango').then((res) => res.json())
 
 export const url = (content, meta) => `/drinks/${content.idDrink}/`
@@ -76,11 +97,11 @@ export const html = (content, meta) =>
 
 ```
 
-### pagination
+### Pagination
 
-the same as a collection, just export an integer with `perPage`.
+the same as a collection, just export an integer to `perPage`.
 
-template file, e.g. (pages/blog.js):
+Example template `pages/blog.js`:
 
 ```js
 export const collection = [
@@ -117,16 +138,20 @@ export const html = (content, meta) =>
 ```
 
 
-## render functions
+## Function arguments
 
-the two render functions (`html` and `url`) are called with:
+The `html` and `url` functions are passed information to help with rendering your templates:
 
-- `content` – includes anything exported by either the `content` or `collection` export.
-- `meta` – includes a number of helper variables, including: `output`, `outputDir`, `relativeRoot`, `currentPage`, `firstPage`, `lastPage`, `previousPage`, `nextPage`, `firstIndexOnPage`, `lastIndexOnPage`, `firstItemOnPage`, `lastItemOnPage` 
+#### `content`
+The value exported by `content` or `collection`
 
-Caveats:
+#### `meta`
 
-- With a paginated route, content will be a list of collection items.
-- When a `collection` is exported, `content` is not passed to the render functions
+`output` `outputDir` `relativeRoot`
+`currentPage` `firstPage` `lastPage` `previousPage` `nextPage` `firstIndexOnPage` `lastIndexOnPage` `firstItemOnPage` `lastItemOnPage` 
+
+#####Caveats:
+
+- When a collection is exported, only the `collection` export is passed to the `html` and `url` functions (the exported value from `content` is ignored)
 
 

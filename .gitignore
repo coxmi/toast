@@ -7,7 +7,7 @@
 *.Trashes
 
 # Ignore private files
-/idea
+/.idea
 
 # Ignore node modules and errors
 

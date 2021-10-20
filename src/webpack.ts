@@ -11,9 +11,9 @@ interface PluginOptions {
 	routes: string|string[]
 }
 
-const PLUGIN_NAME = "StaticSitePlugin"
+const PLUGIN_NAME = "ToastPlugin"
 
-export default class StaticSitePlugin {
+export default class ToastPlugin {
 
 	private globs: string[]
 

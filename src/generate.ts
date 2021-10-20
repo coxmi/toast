@@ -222,7 +222,7 @@ function validateRoute({ html, url, single, collection, perPage }) : true {
 	return true
 }
 
-function pageVars(currentIndex, perPage, totalItems) {
+function pageVars(currentIndex?: number, perPage?: number, totalItems?: number) {
 
 	const orNull = num => (typeof num === 'number' && !Number.isNaN(num)) ? num : null
 	const currentPage = orNull(currentIndex + 1)
