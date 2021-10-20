@@ -3,7 +3,20 @@
   "version": "0.0.1",
   "license": "MIT",
   "author": "Michael Cox <michael@se-make.co.uk>",
-  "description": "tiny static site generator for webpack",
+  "description": "tiny static site generator plugin for webpack",
+  "homepage": "https://github.com/coxmi/toast",
+  "bugs": "https://github.com/coxmi/toast/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/coxmi/toast.git"
+  },
+  "keywords": [
+    "static site generator", "webpack", "ssg"
+  ],
+  "files": [
+    "README.md",
+    "dist/*.js"
+  ],
   "main": "dist/webpack.js",
   "scripts": {
     "build": "tsc; babel src --out-dir dist --extensions '.ts,.js,.jsx' --source-maps",

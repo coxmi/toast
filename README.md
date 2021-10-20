@@ -1,4 +1,4 @@
-#toast
+# toast
 
 ## A really tiny static site generator plugin for webpack
 
@@ -36,8 +36,7 @@ module.exports = {
     plugins: [
         new ToastPlugin({ 
             pages: './pages/**.js' 
-        }),
-        ...
+        })
     ]
 }
 ```
@@ -46,13 +45,13 @@ module.exports = {
 
 A template is a simple js file that exports a set of properties:
 
-Export name | Valid signatures | Use |
-:--- | :--- | :---
-`html` | `function => string` |  Render the page content
-`url` | `string|function => string` | Set the page url
-`content`<br>(optional) | `function|Promise` | Fetch data. This function's return value is passed to `html` when the page is rendered.
-`collection`<br>(optional) | `function|Promise => []` | Fetch a set of items. Each item is passed to the `html` function in turn to generate a set of pages.
-`perPage`<br>(optional) | `number` |  split a `collection` into chunks of a certain size, for pagination.
+| Export name | Valid signatures | Use |
+| :--- | :--- | :--- |
+| `html` | `function => string` |  Render the page content |
+| `url` | `string|function => string` | Set the page url |
+| `content`<br>(optional) | `function|Promise` | Fetch data. This function's return value is passed to `html` when the page is rendered. |
+| `collection`<br>(optional) | `function|Promise => []` | Fetch a set of items. Each item is passed to the `html` function in turn to generate a set of pages. |
+| `perPage`<br>(optional) | `number` |  split a `collection` into chunks of a certain size, for pagination. |
 
 
 ### Single page
@@ -152,7 +151,7 @@ The value exported by `content` or `collection`
 `output` `outputDir` `relativeRoot`
 `currentPage` `firstPage` `lastPage` `previousPage` `nextPage` `firstIndexOnPage` `lastIndexOnPage` `firstItemOnPage` `lastItemOnPage` 
 
-#####Caveats:
+##### Caveats:
 
 - When a collection is exported, only the `collection` export is passed to the `html` and `url` functions (the exported value from `content` is ignored)
 
