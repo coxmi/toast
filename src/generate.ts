@@ -13,24 +13,36 @@ type Map = {
 type RenderFunction = (content: {}, meta : {}) => string
 
 
-export async function staticGen(outputDir: string, entrypoints: Map, compiledFiles: string[], routes: string[]) {
+export async function staticGen(outputDir: string, entrypoints: Map, compiledFiles: string[], routes: string[], compilerRoot: string) {
 
 	const generator = createGenerator(outputDir)
+	const errorMap = {}
 
 	const processed = await Promise.all(routes.map(async route => {
 		const filepath = entrypoints[route]
 		if (!filepath) throw new Error(`No module found at "${filepath}"`)
-		clearModule(filepath)
+
 		const exists = await fs.pathExists(filepath)
-		if (exists) {
-			try {
-				const compiled = await import(filepath)
-				return await processRoute(route, compiled, generator)
-			} catch(e) {
-				// don't throw – webpack already handles this
-			}
-		}
-		return false
+		clearModule(filepath)
+		if (!exists) return false
+
+		let compiled
+		try { compiled = await import(filepath) } 
+		catch (error) {
+			// catch runtime errors from import
+			// webpack handles syntax errors before we get to this
+			console.log(error)
+		} 
+		try { return await processRoute(route, compiled, generator)	} 
+		catch (error) {		
+			// catch runtime errors from running html/url functions	
+			// stop doubling up from component errors
+			const rows = error.message.split('\n').slice(0, 3).join('\n')
+			if (!errorMap[rows]) console.log(error)
+			errorMap[rows] = true
+		}	
+
+		return false	
 	}))
 
 	// delete all generated js files
@@ -50,7 +62,7 @@ export async function staticGen(outputDir: string, entrypoints: Map, compiledFil
 	const cyan = "\x1b[36m"
 	const plural = (count: number, singular: string, plural: string) => count === 1 ? singular : plural
 	const displayMax = 10
-	let text = `${cyan}${outputs.length} ${plural(outputs.length, 'page', 'pages')}${reset} created at ${cyan}${path.relative(process.cwd() ,outputDir)}${reset}`
+	let text = `${cyan}${outputs.length || 'No'} ${plural(outputs.length, 'page', 'pages')}${reset} created at ${cyan}${path.relative(process.cwd() ,outputDir)}${reset}`
 	if (outputs.length <= displayMax) {
 		const list = outputs.map(url => path.relative(outputDir, staticpath(url, outputDir))).join(', ')
 		text += ` ${dim}(${list})${reset}`
@@ -59,10 +71,12 @@ export async function staticGen(outputDir: string, entrypoints: Map, compiledFil
 }
 
 
-async function processRoute(name, route, generator) {
-
+async function processRoute(sourcefile, route, generator) {
+	
+	if (!route) return false
+	
 	const messages = []
-	if (validateRoute(name, route) !== true) return false
+	if (validateRoute(sourcefile, route) !== true) return false
 
 	const hasSingleProp = route.content !== undefined
 	const hasCollectionProp = route.collection !== undefined
@@ -215,10 +229,10 @@ function createGenerator(outputDir = '') {
 }
 
 
-function validateRoute(name, { html, url, single, collection, perPage }) : true {
+function validateRoute(sourcefile, { html, url, single, collection, perPage }) : true {
 
 	const messages = []
-	const throwEarly = () => messages.length && throws(`${name}`, messages)
+	const throwEarly = () => messages.length && throws(sourcefile, messages)
 
 	const hasCollectionProp = collection !== undefined
 	const isStringUrl = typeof url === 'string'
@@ -247,7 +261,7 @@ function validateRoute(name, { html, url, single, collection, perPage }) : true 
 	if (typeof perPage === 'number' && perPage <= 0)
 		messages.push(`export 'perPage' must be positive`)
 
-	if (messages.length) throws(`${name}`, messages)
+	if (messages.length) throws(sourcefile, messages)
 	
 	return true
 }

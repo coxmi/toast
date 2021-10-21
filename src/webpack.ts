@@ -73,7 +73,7 @@ export default class ToastPlugin {
 				return [origin, filepath]
 			})))
 
-			await staticGen(outputPath, entrypoints, compiledFiles, routes)
+			await staticGen(outputPath, entrypoints, compiledFiles, routes, compiler.context)
 		})
 	}
 }
