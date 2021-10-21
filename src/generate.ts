@@ -23,8 +23,12 @@ export async function staticGen(outputDir: string, entrypoints: Map, compiledFil
 		clearModule(filepath)
 		const exists = await fs.pathExists(filepath)
 		if (exists) {
-			const compiled = await import(filepath)
-			return await processRoute(route, compiled, generator)
+			try {
+				const compiled = await import(filepath)
+				return await processRoute(route, compiled, generator)
+			} catch(e) {
+				// don't throw – webpack already handles this
+			}
 		}
 		return false
 	}))
@@ -39,7 +43,8 @@ export async function staticGen(outputDir: string, entrypoints: Map, compiledFil
 	})
 
 	const outputs = (await Promise.all(rendered)).filter(Boolean)
-	
+	if (!outputs.length) return
+
 	const reset = "\x1b[0m"
 	const dim = "\x1b[2m"
 	const cyan = "\x1b[36m"
