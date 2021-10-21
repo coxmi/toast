@@ -9,6 +9,6 @@ export const html = content =>
     <html>
         <body>
             <h1>${content.title}</h1>
-            <img src="${ content.img }">
+            <img src="${content.img}" alt="${content.alt}">
         </body>
     </html>`

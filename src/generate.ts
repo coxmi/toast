@@ -1,6 +1,6 @@
-
-import fs from 'fs-extra'
 import path from 'path'
+import fs from 'fs-extra'
+import { getRequestContext, updateRequestContext, cleanContext } from 'async-hooks-context'
 import clearModule from 'clear-module'
 import { applyHook } from './hooks.js'
 import { createPage, staticpath } from './pages.js'
@@ -10,7 +10,7 @@ type Map = {
     [key: string]: string
 }
 
-type AnyFunctionTemp = (...args : any[]) => any
+type RenderFunction = (content: {}, meta : {}) => string
 
 
 export async function staticGen(outputDir: string, entrypoints: Map, compiledFiles: string[], routes: string[]) {
@@ -143,6 +143,8 @@ function createGenerator(outputDir = '') {
 	const duplicateEntries = []
 	const duplicateMap = {}
 
+	global.context = () => getRequestContext()
+
 	const leading = (base :string, start: string) :string => {
 		return base.startsWith(start) ? base : `${base}${start}`
 	}
@@ -151,40 +153,53 @@ function createGenerator(outputDir = '') {
 		return base.endsWith(end) ? base : `${base}${end}`
 	}
 
-	const rootFrom = url => trailing(path.relative(url, '/') || '.', '/')
+	async function generateSingle(fnUrl : RenderFunction, fnHtml : RenderFunction, content = {}, meta = {}) {
 
-	const absoluteFromOutput = url => {
-		const absolute = staticpath(url, outputDir)
-		const relative = path.relative(outputDir, absolute)
-		return path.join('/', relative)
-	}
-
-	async function generateSingle(fnUrl : AnyFunctionTemp, fnHtml : AnyFunctionTemp, content = {}, meta = {}) {
-
-		const url = await fnUrl(content, meta)
-
-		// gather metadata
-		const pageMeta = {
-			url : url,
-			output : absoluteFromOutput(url),
-			outputDir : outputDir,
-			relativeRoot : rootFrom(url),
-			relative : (from: string):string => path.join(rootFrom(url), from),
+		const urlMeta = Object.freeze({
+			url : undefined,
+			output : undefined,
+			outputDir : outputDir, 
+			root : undefined,
+			relative : undefined,
 			...meta,
-		}
+		})
 
-		// allow access to meta and content from global functions before rendering the page
-		global.content = () => content
-		global.meta = () => pageMeta
+		const urlContext = Object.freeze({ content, meta : urlMeta })
+		
+		updateRequestContext(urlContext)
+		const url = await fnUrl(content, urlMeta)
+		cleanContext()
 
-		const output = await fnHtml(content, pageMeta)
-		const single = [url, output]
+		if (typeof url !== 'string') 
+			throw new Error('url must return a string or Promise<string>, found: ' + url)
 
-		if (duplicateMap[url]) duplicateEntries.push(single)
+		const outputAbsolute = staticpath(url, outputDir)
+		const outputFromRoot = outputAbsolute.replace(outputDir, '')
+		const toRoot = trailing(
+			path.relative(path.dirname(outputAbsolute), outputDir) || '.', 
+			'/'
+		)
+
+		const pageMeta = Object.freeze({
+			...urlMeta,
+			url : url,
+			output : outputFromRoot,
+			outputDir : outputDir,
+			root : toRoot,
+			relative : (from: string): string => path.join(toRoot, from)
+		})
+
+		const pageContext = Object.freeze({ content, meta : pageMeta })
+
+		updateRequestContext(pageContext)
+		const page = await fnHtml(content, pageMeta)
+		cleanContext()
+
+		const entry = [url, page]
+		if (duplicateMap[url]) duplicateEntries.push(entry)
 		duplicateMap[url] = true
-		outputEntries.push(single)
-
-		return single
+		outputEntries.push(entry)
+		return entry
 	}
 
 	return {

@@ -1,5 +1,7 @@
 # toast
 
+### <pre>Please note: This library is a work in progress!</pre>
+
 ## A really tiny static site generator plugin for webpack
 
 transpile, generate, or concatenate your templates however you want, toast is just a step in your build process. It’s flexible enough to use `ejs` for your `sitemap.xml`, and `jsx` for your `<head>`, and turn external data sources into a static site without specifying your development environment.
@@ -11,8 +13,6 @@ transpile, generate, or concatenate your templates however you want, toast is ju
 
 
 ## Setup
-
-### <b>Note: This library is a work in progress!</b>
 
 Install `toast`:
 
@@ -139,20 +139,35 @@ export const html = (content, meta) =>
 ```
 
 
-## Function arguments
+## Render context
 
-The `html` and `url` functions are passed information to help with rendering your templates:
+The `html` and `url` functions are passed `content` and `meta` as the first two arguments.
 
 #### `content`
-The value exported by `content` or `collection`
+
+is set to the value exported by either your `content` or `collection` function in the template (when the `collection` export is used, the `content` export is ignored).
 
 #### `meta`
 
-`output` `outputDir` `relativeRoot`
-`currentPage` `firstPage` `lastPage` `previousPage` `nextPage` `firstIndexOnPage` `lastIndexOnPage` `firstItemOnPage` `lastItemOnPage` 
+is an object with the following properties:
 
-##### Caveats:
+- `url`: the pretty url returned from your `url` function (e.g. `/`)
+- `output`: the actual path to the output file (e.g. `/index.html`)
+- `outputDir`: absolute path to the root directory
+- `root`: relative path to the root directory
+- `relative(assetPath)`: returns the relative path to an asset from the current page
+- Pagination info: `currentPage` `firstPage` `lastPage` `previousPage` `nextPage` `firstIndexOnPage` `lastIndexOnPage` `firstItemOnPage` `lastItemOnPage` 
 
-- When a collection is exported, only the `collection` export is passed to the `html` and `url` functions (the exported value from `content` is ignored)
+
+#### `context()` 
+
+Call the `context()` function anywhere within your render function's stack (including async components, or deep within the render tree) to return an object containing the `content` and `meta` keys. 
+
+```js
+const { content, meta } = context()
+```
 
 
+## Licence
+
+MIT
