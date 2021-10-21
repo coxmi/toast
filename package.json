@@ -17,7 +17,8 @@
   ],
   "files": [
     "README.md",
-    "dist/*.js"
+    "dist/*.js",
+    "dist/*.js.map"
   ],
   "main": "dist/webpack.js",
   "scripts": {
