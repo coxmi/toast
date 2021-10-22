@@ -168,6 +168,6 @@ const { content, meta } = context()
 ```
 
 
-## Licence
+## Contributing
 
-MIT
+Contributions welcome!
