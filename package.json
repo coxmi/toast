@@ -1,7 +1,7 @@
 {
   "name": "toast-static",
   "version": "0.1.2",
-  "license": "MIT",
+  "license": "CC0 1.0 Universal",
   "author": "Michael Cox <michael@se-make.co.uk>",
   "description": "tiny static site generator plugin for webpack",
   "homepage": "https://github.com/coxmi/toast",
