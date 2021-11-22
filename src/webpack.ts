@@ -80,6 +80,11 @@ export default class ToastPlugin {
 
 function webpackEditConfiguration(compiler: Compiler) {
 
+	// put all js output in a cache directory
+	const filename = compiler.options.output.filename || '[name].js'
+	const pathToContext = (path.relative(compiler.options.output.path, compiler.context) || '.')
+	compiler.options.output.filename = `${pathToContext}/.cache/${filename}`
+
 	// use node target, or dynamic imports are included with script loader
 	compiler.options.target = 'node'
 

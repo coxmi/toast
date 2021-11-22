@@ -47,9 +47,6 @@ export async function staticGen(outputDir: string, entrypoints: Map, compiledFil
 		return false	
 	}))
 
-	// delete all generated js files
-	compiledFiles.map(file => fs.remove(file))
-
 	const rendered = generator.outputEntries().map(async output => {
 		const [url, source] = output
 		const success = await createPage(outputDir, url, source)
