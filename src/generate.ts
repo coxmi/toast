@@ -19,12 +19,14 @@ export async function staticGen(outputDir: string, entrypoints: Map, compiledFil
 	const errorMap = {}
 
 	const processed = await Promise.all(routes.map(async route => {
+		
 		const filepath = entrypoints[route]
 		if (!filepath) throw new Error(`No module found at "${filepath}"`)
 
 		const exists = await fs.pathExists(filepath)
+		if (!exists) throw new Error(`No module found at "${filepath}"`)
+
 		clearModule(filepath)
-		if (!exists) return false
 
 		let compiled
 		try { compiled = await import(filepath) } 

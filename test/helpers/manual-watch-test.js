@@ -1,13 +1,13 @@
 
 const webpack = require('webpack')
 const path = require('path')
-const Plugin = require('./../../dist/index.js').default
+const Plugin = require('./../../dist/webpack.js')
 
 const fixture = (...paths) => path.resolve(__dirname, './../fixtures/', ...paths)
 
 function watch({ name, config }) {
     const outputDir = fixture('dist', name)
-    webpack({
+    compiler = webpack({
         mode: 'development',
         devtool: 'source-map',
         watch: true,
@@ -25,11 +25,15 @@ function watch({ name, config }) {
             filename: '[name].js',
         },
         ...config
-    }).watch({}, (err, stats) => {})
+    })
+
+    compiler.watch({}, (err, stats) => {
+        if (err) console.log(err)
+    })
 }
 
 watch({
-    name: 'route-jsx',
+    name: 'route-dynamic',
     config: {
         module: {
             rules: [
@@ -42,7 +46,7 @@ watch({
         },
         plugins: [
             new Plugin({ 
-                pages: fixture('route-jsx/template-*.js') 
+                pages: fixture('route-dynamic/template.js') 
             })
         ]
     }
