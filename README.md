@@ -47,7 +47,7 @@ A template is a simple js file that exports a set of properties:
 
 | Export name | Valid signatures | Use |
 | :--- | :--- | :--- |
-| `html` | `function` |  Render the page content |
+| `html` | `function`<br>`string` | Render the page content |
 | `url` | `function`<br>`string` | Set the page url |
 | `content`<br>(optional) | `function`<br>`Promise` | Fetch data. This function's return value is passed to `html` when the page is rendered. |
 | `collection`<br>(optional) | `function`<br>`Promise` | Fetch a set of items. Each item is passed to the `html` function in turn to generate a set of pages. |
@@ -119,7 +119,7 @@ export const perPage = 5
 
 // "/posts" for first page, and "/posts/2" for others
 export const url = (content, meta) => {
-    return (currentPage === 1)
+    return (meta.currentPage === 1)
         ? `/posts/`
         : `/posts/${meta.currentPage}/`
 }
