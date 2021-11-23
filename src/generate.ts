@@ -1,3 +1,4 @@
+import 'source-map-support/register'
 import path from 'path'
 import fs from 'fs-extra'
 import { getRequestContext, updateRequestContext, cleanContext } from 'async-hooks-context'
@@ -5,6 +6,7 @@ import clearModule from 'clear-module'
 import { applyHook } from './hooks.js'
 import { createPage, staticpath } from './pages.js'
 import { isFunction, isIterable, isArray, chunkArray } from './util.js'
+
 
 type Map = {
     [key: string]: string

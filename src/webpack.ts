@@ -85,6 +85,9 @@ function webpackEditConfiguration(compiler: Compiler) {
 	const pathToContext = (path.relative(compiler.options.output.path, compiler.context) || '.')
 	compiler.options.output.filename = `${pathToContext}/.cache/${filename}`
 
+	// fix sourcemaps
+	compiler.options.output.devtoolModuleFilenameTemplate = '[absolute-resource-path]'
+
 	// use node target, or dynamic imports are included with script loader
 	compiler.options.target = 'node'
 

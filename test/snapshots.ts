@@ -38,7 +38,10 @@ async function generate({ name = '', config = {} }) {
 }
 
 
-async function snapshot({ name = '', config = {} }) {
+async function snapshot({ name = '', config = {} } : { name:string, config:any }) {
+    // run webpack context from the fixture name
+    config.context = fixture('dist/' + name)
+    
     test(name, async t => {
          const fileEntries = await generate({ name, config })    
         t.snapshot(fileEntries)
