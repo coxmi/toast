@@ -4,21 +4,23 @@ const timeout = s => new Promise(resolve => setTimeout(resolve, s))
 export const collection = async () => {
 	await timeout(200)
 	return [
-		{ slug : '/' },
-		{ slug : '/level-1/' },
-		{ slug : '/level-1/page.html' },
-		{ slug : '/level-1/level-2/' },
-		{ slug : '/level-1/level-2/page.html' }
+		// uses overlapping wait / length times — a crossover shouldn't cause errors in global context
+		{ slug : '/', wait : 0, length : 500 },
+		{ slug : '/level-1/', wait : 100, length : 400 },
+		{ slug : '/level-1/page.html', wait : 200, length : 300 },
+		{ slug : '/level-1/level-2/', wait : 250, length : 450 },
+		{ slug : '/level-1/level-2/page.html', wait : 100, length : 250 }
 	]
 }
 
 export const url = async content => {
-	await timeout(200)
+	await timeout(100)
 	return content.slug
 }
 
 export const html = async (content, meta) => {
-	await timeout(200)
+	await timeout(content.wait)
+	await timeout(content.length)
 	return `<!DOCTYPE html>
 	<html>
 		<body>
@@ -29,7 +31,7 @@ export const html = async (content, meta) => {
 }
 
 const AsyncComponent = async () => {
-	await timeout(200)
+	await timeout(5)
 	const { content, meta } = context()
 	return `
 		<h2>async context variables:</h2>

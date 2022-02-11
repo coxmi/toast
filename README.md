@@ -1,20 +1,41 @@
+
+
+<pre>Please note: This library is a work in progress!</pre>
+
 # toast
 
-### <pre>Please note: This library is a work in progress!</pre>
+### A really tiny static site generator plugin for webpack
 
-## A really tiny static site generator plugin for webpack
-
-transpile, generate, or concatenate your templates however you want, toast is just a step in your build process. It’s flexible enough to use `ejs` for your `sitemap.xml`, and `jsx` for your `<head>`, and turn external data sources into a static site without specifying your development environment.
+Turn external data sources into a static site without specifying your development environment. Transpile, generate, or concatenate your templates however you want, toast is just a step in your build process. You're not tied in to using today’s framework of choice, so you can use es6 template literals for your `sitemap.xml`, `jsx` for your `<head>`, or `ejs` for your `<body>`.
 
 - bring your own transpilation (using [webpack](https://webpack.js.org/))
 - just return a `string` in your template render function
-- template-first: set urls in your template files (no magic filenames or frontmatter)
+- no magic filenames or frontmatter: set urls in your template files
 - fetch data from anywhere: just export a `Promise` or `async` function
 
 
+## Usage
+
+```js
+// grab your content from anywhere
+export const content = { title: 'Hello, World!' }
+
+// set the url of your page
+export const url = '/'
+
+// render your template
+export const html = (content, meta) => 
+  `<!DOCTYPE html>
+   <html>
+        <body>
+            <h1>${content.title}</h1>
+        </body>
+    </html>`
+```
+
 ## Setup
 
-Install `toast`:
+### Install
 
 ```bash
 npm install toast-static --save-dev
@@ -22,11 +43,11 @@ npm install toast-static --save-dev
 
 ### Configure webpack
 
-Add the plugin to your `webpack.config.js`, and set the `pages` option to point to your template files (use a path, glob, or array).
+Add the plugin to your `webpack.config.js`:
 
 
 ```js
-const ToastPlugin = require('toast-static')
+const { WebpackToastPlugin } = require('toast-static')
 
 module.exports = {
     output: {
@@ -34,40 +55,32 @@ module.exports = {
         filename: '[name].js',
     },
     plugins: [
-        new ToastPlugin({ 
-            pages: './pages/**.js' 
+        new WebpackToastPlugin({ 
+            // your template files (takes a glob, path, or array)
+            pages: './pages/**.js'
         })
     ]
 }
 ```
 
+
+
 ## Templates
 
-A template is a simple js file that exports a set of properties:
+At its most basic, a template is a simple js file with some exports. 
 
-| Export name | Valid signatures | Use |
-| :--- | :--- | :--- |
-| `html` | `function`<br>`string` | Render the page content |
-| `url` | `function`<br>`string` | Set the page url |
-| `content`<br>(optional) | `function`<br>`Promise` | Fetch data. This function's return value is passed to `html` when the page is rendered. |
-| `collection`<br>(optional) | `function`<br>`Promise` | Fetch a set of items. Each item is passed to the `html` function in turn to generate a set of pages. |
-| `perPage`<br>(optional) | `number` |  split a `collection` into chunks of a certain size, for pagination. |
-
-
-### Single page
-
-Example template `pages/latest.js`:
+`pages/latest.js`:
 
 ```js
-// export your data
+// grab your data (optional)
 export const content = fetch('https://xkcd.com/info.0.json').then((res) => res.json())
 
-// set your output url
-export const url = '/latest/'
+// set your output url (starting with a forward-slash)
+export const url = (content, meta) => '/latest/'
 
 // render your html (or css, json, xml, rss, svg, or any other string-based format)
 export const html = (content, meta) => 
-    `<!DOCTYPE html>
+   `<!DOCTYPE html>
     <html>
         <body>
             <h1>${content.title}</h1>
@@ -80,7 +93,7 @@ export const html = (content, meta) =>
 
 Export an iterable to `collection`, and a page will be generated for each item. 
 
-Example template `pages/drinks.js`:
+`pages/drinks.js`:
 
 ```js
 export const collection = fetch('https://thecocktaildb.com/api/json/v1/1/filter.php?i=Mango').then((res) => res.json())
@@ -100,9 +113,9 @@ export const html = (content, meta) =>
 
 ### Pagination
 
-the same as a collection, just export an integer to `perPage`.
+To split up a collection into pages, just export a number to `perPage`.
 
-Example template `pages/blog.js`:
+`pages/blog.js`:
 
 ```js
 export const collection = [
@@ -114,10 +127,10 @@ export const collection = [
     { url: 'the-singularity-came-from-css-houdini' }
 ]
 
-// split posts into chunks of five per page
+// split posts into groups of five
 export const perPage = 5 
 
-// "/posts" for first page, and "/posts/2" for others
+// set url to "/posts" for first page, and "/posts/2" for others
 export const url = (content, meta) => {
     return (meta.currentPage === 1)
         ? `/posts/`
@@ -139,9 +152,21 @@ export const html = (content, meta) =>
 ```
 
 
-## Render context
+# Template exports
 
-The `html` and `url` functions are passed `content` and `meta` as the first two arguments.
+
+| Name | Purpose | Valid signatures
+| :--- | :--- | :--- |
+| `html` | Outputs the page content<br>Function is passed `content` and `meta` arguments to help render the page | `async (content, meta) => string`<br>`string` |
+| `url` | Sets the page url<br>Must begin with a `/`. | `async (content, meta) => string`<br>`string` |
+| `content` | (optional) Use to fetch the data from anywhere<br>(result is passed to `html` function) |  `async () => any`<br>`any` |
+| `collection` | (optional) Fetch a set of items<br>Each item generates a page | `async () => []`<br>`[]` |
+| `perPage` | (optional) split a `collection` into chunks for pagination | `number` |
+
+<br>
+#### `html` and `url` function arguments
+
+
 
 #### `content`
 
@@ -152,22 +177,32 @@ is set to the value exported by either your `content` or `collection` function i
 is an object with the following properties:
 
 - `url`: the pretty url returned from your `url` function (e.g. `/`)
-- `output`: the actual path to the output file (e.g. `/index.html`)
-- `outputDir`: absolute path to the root directory
-- `root`: relative path to the root directory
-- `relative(assetPath)`: returns the relative path to an asset from the current page
-- Pagination info: `currentPage` `firstPage` `lastPage` `previousPage` `nextPage` `firstIndexOnPage` `lastIndexOnPage` `firstItemOnPage` `lastItemOnPage` 
+- `output`: the path to the file created (e.g. `/index.html`)
+- `outputDir`: absolute path to the output directory
+- `root`: relative path from the current page to the document root
+- `relative(pathFromRoot)`: returns the relative path to an asset from the current page
+- `currentPage`: the current page in a collection
+- `firstPage`: the first page in a collection
+- `lastPage`: the last page in a collection 
+- `previousPage`: the previous page in a collection 
+- `nextPage`: the next page in a collection 
+- `firstIndexOnPage`: the first item on the current page (counting from 0) 
+- `lastIndexOnPage`: the last item on the current page (counting from 0)
+- `firstItemOnPage`: the first item on the current page (counting from 1)
+- `lastItemOnPage`: the first item on the current page (counting from 1)
 
 
-#### `context()` 
+### Use the `content` and `meta` functions anywhere
 
-Call the `context()` function anywhere within your render function's stack (including async components, or deep within the render tree) to return an object containing the `content` and `meta` keys. 
+#### `global.context()` 
+
+Call the `context()` function anywhere within your render function’s stack (including async components, or deep within the render tree) to return an object containing the `content` and `meta` keys. 
 
 ```js
 const { content, meta } = context()
 ```
 
 
-## Contributing
+# Contributing
 
 Contributions welcome!

@@ -11,9 +11,9 @@ interface PluginOptions {
 	pages: string|string[]
 }
 
-const PLUGIN_NAME = "ToastPlugin"
+const PLUGIN_NAME = "WebpackToastPlugin"
 
-export default class ToastPlugin {
+export class WebpackToastPlugin {
 
 	private globs: string[]
 

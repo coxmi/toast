@@ -148,7 +148,7 @@ async function processRoute(sourcefile, route, generator) {
 	// single
 	// beforeCollection
 	// collection
-	// urlconso
+	// url
 	// beforeHtml
 	// html
 	// e.g.
@@ -184,6 +184,8 @@ function createGenerator(outputDir = '') {
 			...meta,
 		})
 
+
+
 		const urlContext = Object.freeze({ content, meta : urlMeta })
 		
 		updateRequestContext(urlContext)
@@ -212,6 +214,7 @@ function createGenerator(outputDir = '') {
 		const pageContext = Object.freeze({ content, meta : pageMeta })
 
 		updateRequestContext(pageContext)
+
 		const page = await fnHtml(content, pageMeta)
 		cleanContext()
 

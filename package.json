@@ -55,7 +55,7 @@
     "typescript": "^4.4.4"
   },
   "dependencies": {
-    "async-hooks-context": "4.0.0",
+    "async-hooks-context": "^4.0.0",
     "clear-module": "^4.1.1",
     "fast-glob": "^3.2.7",
     "find-cache-dir": "^3.3.2",
