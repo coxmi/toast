@@ -1,5 +1,5 @@
 
-import { staticGen } from './generate.js'
+import { toast } from './generate.js'
 import path from 'path'
 import glob from 'fast-glob'
 import fs from 'fs-extra'
@@ -7,78 +7,22 @@ import { Compiler } from 'webpack'
 import EntryPlugin from 'webpack/lib/EntryPlugin'
 
 
+const PLUGIN_NAME = 'WebpackToastPlugin'
+
+
 interface PluginOptions {
 	pages: string|string[]
 }
 
-const PLUGIN_NAME = "WebpackToastPlugin"
 
-export class WebpackToastPlugin {
+function webpackEditConfiguration(compiler: Compiler): void {
 
-	private globs: string[]
-
-	constructor({ pages = [] }: PluginOptions) {
-		this.globs = [pages].flat()
+	// remove main entry if it's empty from config
+	for (const name in compiler.options.entry) {
+		const entry = compiler.options.entry[name]
+		if (!Object.keys(entry).length) 
+			delete compiler.options.entry[name]
 	}
-
-	absoluteRoutePaths(globs, relativeTo) {
-		const results = globs.map(globPath => {
-			const isRelative = !globPath.startsWith('/')
-			const absoluteGlobPath = isRelative ? path.resolve(relativeTo, globPath) : globPath
-			return glob.sync(absoluteGlobPath)
-		})
-		return results.flat()
-	}
-
-	apply(compiler: Compiler) {
-
-		webpackEditConfiguration(compiler)
-
-		// remove main entry if it's empty from config
-		for (var name in compiler.options.entry) {
-			const entry = compiler.options.entry[name]
-			if (!Object.keys(entry).length) 
-				delete compiler.options.entry[name]
-		}
-
-		// add template routes as new entry points
-		const routes = this.absoluteRoutePaths(this.globs, compiler.context)
-
-		if (!routes.length) {
-			throw new Error(`No templates found using: ${this.globs.join(', ')}`)
-		}
-
-		routes.map(file => {
-			new EntryPlugin(compiler.context, file, path.parse(file).name).apply(compiler)
-		})
-
-		// after emit, get entrypoint info and compile routes
-		compiler.hooks.afterEmit.tapPromise(PLUGIN_NAME, async compilation => {
-			
-			const outputPath = compilation.outputOptions.path
-			
-			const allFiles = [ ...compilation.chunks ]
-				.map(chunk => [ ...chunk.files, ...chunk.auxiliaryFiles ])
-				.flat()
-				.map(file => path.resolve(outputPath, file))
-
-			const compiledFiles = allFiles.filter(name => /\.js(\.map)?$/.test(name))
-			
-			const entrypoints = Object.fromEntries(await Promise.all([...compilation.entrypoints.values()].map(async entry => {
-				const chunk = entry.getEntrypointChunk()
-				const origin = entry?.origins[0]?.request
-				const files = [...chunk.files, ...chunk.auxiliaryFiles]
-				const file = files.find(name => /\.js$/.test(name))
-				const filepath = path.resolve(outputPath, file)
-				return [origin, filepath]
-			})))
-
-			await staticGen(outputPath, entrypoints, compiledFiles, routes, compiler.context)
-		})
-	}
-}
-
-function webpackEditConfiguration(compiler: Compiler) {
 
 	// put all js output in a cache directory
 	const filename = compiler.options.output.filename || '[name].js'
@@ -103,5 +47,80 @@ function webpackEditConfiguration(compiler: Compiler) {
 		...compiler.options.optimization,
 		mangleExports: false,
 		minimize: false,
+	}
+}
+
+function webpackAddEntrypoints(entrypoints: string[], compiler: Compiler): void {
+	entrypoints.map(file => {
+		new EntryPlugin(compiler.context, file, path.parse(file).name).apply(compiler)
+	})
+	if (!entrypoints.length) 
+		throw new Error(`No templates found using: ${this.globs.join(', ')}`);
+}
+
+function absolutePaths(globs: string[], relativeTo: string): string[] {
+	const results = globs.map(globPath => {
+		const isRelative = !globPath.startsWith('/')
+		const absoluteGlobPath = isRelative ? path.resolve(relativeTo, globPath) : globPath
+		return glob.sync(absoluteGlobPath)
+	})
+	return results.flat()
+}
+
+
+export class WebpackToastPlugin {
+
+	private globs: string[]
+
+	constructor({ pages = [] }: PluginOptions) {
+		this.globs = [pages].flat()
+	}
+
+	apply(compiler: Compiler) {
+
+		const pages = absolutePaths(this.globs, compiler.context)
+		
+		webpackEditConfiguration(compiler)
+		webpackAddEntrypoints(pages, compiler)
+
+		// patch addEntry function to test if cache has changed
+		// compiler.hooks.compilation.tap(PLUGIN_NAME, compilation => {
+		// 	const webpackAddEntry = compilation.addEntry.bind(compilation)
+		// 	compilation.addEntry = (context, dep, name, done) => {
+		// 		console.log(compilation.moduleGraph.getModule(dep))
+		// 		webpackAddEntry(context, dep, name, done)
+		// 	}
+		// })
+
+		// after emit, get entrypoint info and compile routes
+		compiler.hooks.afterEmit.tapPromise(PLUGIN_NAME, async compilation => {
+			
+			const outputDir = compilation.outputOptions.path
+			const entrypoints = [...compilation.entrypoints.values()]
+			
+			const entries = Object.fromEntries(await Promise.all(entrypoints.map(async entry => {
+				const chunk = entry.getEntrypointChunk()
+				const origin = entry?.origins[0]?.request
+				const files = [...chunk.files, ...chunk.auxiliaryFiles]
+				const file = files.find(name => /\.js$/.test(name))
+				const filepath = path.resolve(outputDir, file)
+				return [origin, filepath]
+			})))
+
+			const dependencies = Object.fromEntries(entrypoints.map(entry => {
+				const chunk = entry.getEntrypointChunk()
+				const origin = entry?.origins[0]?.request
+				const modules = compilation.chunkGraph.getChunkModules(chunk)
+
+				const dependencies = modules
+					// @ts-ignore (userRequest not in webpack Module type)
+					.map(module => module.userRequest)
+					.filter(moduleId => fs.pathExistsSync(moduleId))
+
+				return [origin, dependencies]
+			}))
+
+			await toast(outputDir, entries, dependencies)
+		})
 	}
 }
