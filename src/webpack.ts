@@ -1,5 +1,5 @@
 
-import { toast } from './generate.js'
+import { toast } from './index.js'
 import path from 'path'
 import glob from 'fast-glob'
 import fs from 'fs-extra'
@@ -50,6 +50,7 @@ function webpackEditConfiguration(compiler: Compiler): void {
 	}
 }
 
+
 function webpackAddEntrypoints(entrypoints: string[], compiler: Compiler): void {
 	entrypoints.map(file => {
 		new EntryPlugin(compiler.context, file, path.parse(file).name).apply(compiler)
@@ -57,6 +58,7 @@ function webpackAddEntrypoints(entrypoints: string[], compiler: Compiler): void 
 	if (!entrypoints.length) 
 		throw new Error(`No templates found using: ${this.globs.join(', ')}`);
 }
+
 
 function absolutePaths(globs: string[], relativeTo: string): string[] {
 	const results = globs.map(globPath => {
@@ -79,7 +81,7 @@ export class WebpackToastPlugin {
 	apply(compiler: Compiler) {
 
 		const pages = absolutePaths(this.globs, compiler.context)
-		
+
 		webpackEditConfiguration(compiler)
 		webpackAddEntrypoints(pages, compiler)
 
