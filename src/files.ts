@@ -29,9 +29,33 @@ export async function createFile(outputDir: string, filePath: string, source: st
 }
 
 
-async function isDir(file : string) : Promise<boolean> {
+export async function canWrite(file): Promise<boolean> {
+    
+    if (!path.isAbsolute(file)) 
+        throw new Error(`"file" must be an absolute path`)
+
+    let current = file
+    let stats = false
+
+    while (!stats) {
+        const stats = await (fs.stat(current)).catch(() => false)
+        if (!stats) {
+            current = path.dirname(current)
+            continue
+        }
+        try {
+          await fs.access(current, fs.W_OK)
+          return true
+        } catch {
+          return false
+        }
+    }
+}
+
+async function isDir(file: string): Promise<boolean> {
     let isDirectory = false
     try { isDirectory = (await fs.stat(file)).isDirectory() } 
     catch { isDirectory = false }
     return isDirectory
 }
+

@@ -3,11 +3,15 @@ import path from 'path'
 import fs from 'fs-extra'
 import clearModule from 'clear-module'
 import { getRequestContext, updateRequestContext, cleanContext } from 'async-hooks-context'
-import { createFile } from './files.js'
+import { createFile, canWrite } from './files.js'
 import { filehashes, sha1, regexes, isFunction, isIterable, isArray, chunkArray, trailing } from './util.js'
 
 
 type EntryMap = StringMap | string[]
+
+type CacheMap = {
+	[key: string]: true|undefined
+}
 
 type DependencyMap = {
 	[key: string]: string[]
@@ -25,31 +29,20 @@ type Template = {
 
 type RenderFunction = (content: {}, meta : {}) => string
 
-type PageIndex = {
+type Index = {
 	add: (key: string, value?: any) => void,
 	all: () => { [key: string]: string },
+	entries : () => Array<[string, string]>,
 	duplicates: () => string[],
 }
 
 
+export function context() {
+	return getRequestContext()
+}
+
+
 export async function toast(outputDir: string, entries: EntryMap, dependencies?: DependencyMap) {
-
-	// todo:
-		// error logger
-		// duplicateErrors: CacheMap = {}
-
-	// intended process:
-		// hashPreviousDependencies
-		// importTemplate
-		// validateTemplate
-		// gatherUserData
-		// permalinks
-		// generatePages
-		// checkGenerationErrors
-		// checkForDuplicates
-		// checkOutputPermissions
-		// outputFilesDryRun
-		// outputFiles
 
 	// possible hooks:
 		// beforeSingle
@@ -79,90 +72,95 @@ export async function toast(outputDir: string, entries: EntryMap, dependencies?:
 	}))
 
 	const parallel = createParallel(templates)
-	const pageIndex: PageIndex = createIndex()
+	const pageIndex: Index = createIndex()
 	const duplicateErrors: CacheMap = {}	
 
 	try {
+		// main process:
+		// hashPreviousDependencies
+		// importTemplate
+		// gatherUserTemplateData
+		// generatePages
+		// checkForDuplicates
+		// outputDryRun
+		// outputFiles
+		// cachePreviousDependencyHashes
+		// cacheOutputFileLocations
 
-		// hash dependencies
-		await parallel(async template => {
-			template.hashedDependencies = await filehashes(template.dependencies)
-		})
-
-		// import and validate
-		await parallel(async template => {
-			const compiled = await importModule(template.importPath)		
-			const invalidations = invalidateTemplate(compiled)
-
-			template.compiled = compiled
-			template.valid = !invalidations.length
-			if (!template.valid)
-				throw new Error(`${template.origin}: ${invalidations.join(', ')}`)
-		})
-
-		// gather user data
-		await parallel(async template => {
-			template.userData = await userTemplateData(template.compiled)
-		})
-
-		// generate pages
+		await parallel(template => hashPreviousDependencies(template))
+		await parallel(template => importTemplate(template))
+		await parallel(template => gatherUserTemplateData(template))
 		await parallel(template => generatePages(template, outputDir, pageIndex))
-	
+		
+		await checkForDuplicates(pageIndex)
+		await outputDryRun(pageIndex, outputDir)
+
+		const rendered: string[] = await outputFiles(pageIndex, outputDir)
+		consoleRendered(rendered, outputDir)
+
 	} catch(error) {
-		// avoid duplicate error messages from a shared 
-		// dependency used by multiple pages 
+		// avoid duplicate error messages from a shared dependency (used by multiple pages)
+		// catches import and runtime errors
+		console.log(error)
+		return
 		if (!errorIsDuplicated(error, duplicateErrors)) console.log(error)
+		return false
 	}
 
-	// deal with duplicates
-	const duplicates = pageIndex.duplicates()
-	if (duplicates.length > 0) {
-
-	}
-
-	// output files
-	const files: Array<[string, string]> = Object.entries(pageIndex.all())
-	const rendered = files.map(async ([ url, source ]) => {
-		const outputPath = staticpath(url, outputDir)
-		const success = await createFile(outputDir, outputPath, source)
-		return success ? url : ""
-	})
-
-	// console message
-	const outputs: string[] = (await Promise.all(rendered)).filter(Boolean)
-	if (!outputs.length) return
-
-	const reset = "\x1b[0m"
-	const dim = "\x1b[2m"
-	const cyan = "\x1b[36m"
-
-	const plural = (count: number, singular: string, plural: string) => count === 1 ? singular : plural
-	
-	const displayMax = 10
-	let text = `${cyan}${outputs.length || 'No'} ${plural(outputs.length, 'page', 'pages')}${reset} created at ${cyan}${path.relative(process.cwd() ,outputDir)}${reset}`
-	
-	if (outputs.length <= displayMax) {
-		const list = outputs.map(
-			url => path.relative(outputDir, staticpath(url, outputDir))
-		).join(', ')
-
-		text += ` ${dim}(${list})${reset}`
-	}
-	
-	console.log(text)	
+	return true
 }
 
 
-function createParallel(array: Array<any>) {
-    return async fn => await Promise.all(array.map(fn))
+function createParallel(array: any[]) {
+	let state = array
+	return async function (fn): Promise<any[]> {
+		state = await Promise.all(array.map(fn))
+		return state
+	}
 }
 
 
-async function importModule(filepath: string): Promise<any> {
-	const exists = await fs.pathExists(filepath)
-	if (!exists) throw new Error(`No module found at "${filepath}"`)
-	clearModule(filepath)
-	return await import(filepath)
+function createIndex(): Index {
+
+    const index: StringMap = {}
+    const duplicates: string[] = []
+    const duplicateMap: CacheMap = {}
+
+    const add = (key: string, value: string): void => {
+    	if (duplicateMap[key]) duplicates.push(key)
+    	duplicateMap[key] = true
+    	index[key] = value
+    }
+
+    return {
+    	add : add,
+    	all : () => index,
+    	entries : () => Object.entries(index),
+        duplicates : () => duplicates,
+    }
+}
+
+
+async function hashPreviousDependencies(template: Template): Promise<Template> {
+	template.hashedDependencies = await filehashes(template.dependencies)
+	return template
+}
+
+
+async function importTemplate(template: Template): Promise<Template> {
+	const exists = await fs.pathExists(template.importPath)
+	if (!exists) throw new Error(`No module found at "${template.importPath}"`)
+
+	clearModule(template.importPath)
+	const compiled = await await import(template.importPath)
+	const invalidations = invalidateTemplate(compiled)
+
+	template.compiled = compiled
+	template.valid = !invalidations.length
+	if (!template.valid)
+		throw new Error(`${template.origin}: ${invalidations.join(', ')}`)
+
+	return template
 }
 
 
@@ -203,8 +201,9 @@ function invalidateTemplate(compiled: any): string[] {
 }
 
 
-async function userTemplateData(compiled: any): Promise<{ collection: any, content: any}> {
+async function gatherUserTemplateData(template: Template): Promise<Template> {
 
+	const compiled: { collection: any, content: any} = template.compiled
 	const hasCollectionProp = compiled.hasOwnProperty('collection')
 		
 	const [collection, content] = await Promise.all([
@@ -215,32 +214,12 @@ async function userTemplateData(compiled: any): Promise<{ collection: any, conte
 	if (hasCollectionProp && !isIterable(collection))
 		throw new Error(`value returned from 'collection' must be iterable`)
 
-	return {
-		collection, content
-	}
-}
-
-function createIndex() {
-
-    const index = {}
-    const duplicates = []
-    const duplicateMap: CacheMap = {}
-
-    const add = (key, value) => {
-    	if (duplicateMap[key]) duplicates.push(key)
-    	duplicateMap[key] = true
-    	index[key] = value
-    }
-
-    return {
-    	add : add,
-    	all : () => index,
-        duplicates : () => duplicates,
-    }
+	template.userData = { collection, content }
+	return template
 }
 
 
-async function generatePages (template: Template, outputDir: string, pageIndex: PageIndex) {
+async function generatePages(template: Template, outputDir: string, pageIndex: Index) {
 		
 	const { compiled, userData } = template
 	const { collection, content } = template.userData
@@ -346,6 +325,70 @@ async function generatePage(outputDir: string, fnUrl: RenderFunction, fnHtml: Re
 
     return [url, page]
 }
+
+function checkForDuplicates(pageIndex: Index): false {
+	const duplicates = pageIndex.duplicates()
+	if (duplicates.length > 0) {
+		const page = (duplicates.length === 1) ? 'Page' : 'Pages'
+		throw new Error(`${page} generated with overlapping permalinks:\n ${duplicates.join('\n')}`)
+	}
+	return false
+}
+
+async function outputDryRun(pageIndex: Index, outputDir: string) : Promise<true> {
+
+	const files: Array<[string, string]> = pageIndex.entries()
+
+	const output = await Promise.all(files.map(async ([ permalink, source ]) => {
+		const file = staticpath(permalink, outputDir)
+		const write = await canWrite(file)
+		return { file, permalink, write }
+	}))
+
+	const failed = output.filter(file => !file.write).map(file => file.permalink)
+
+	if (failed.length) 
+		throw new Error(`Failed to write files: \n${failed.join('\n')}`)
+
+	return true
+}
+
+async function outputFiles(pageIndex: Index, outputDir: string) : Promise<string[]> {
+	
+	const files: Array<[string, string]> = pageIndex.entries()
+
+	const output = await Promise.all(files.map(async ([ permalink, source ]) => {
+		const file = staticpath(permalink, outputDir)
+		const rendered = await createFile(outputDir, file, source)
+		return { file, permalink, rendered }
+	}))
+
+	const rendered = output.filter(file => file.rendered).map(file => file.permalink)
+	return rendered
+}
+
+
+function consoleRendered(outputs: string[], outputDir: string): void {
+
+	const reset = "\x1b[0m"
+	const dim = "\x1b[2m"
+	const cyan = "\x1b[36m"
+	const plural = (count: number, singular: string, plural: string) => count === 1 ? singular : plural
+	
+	const displayMax = 12
+	let text = `${cyan}${outputs.length || 'No'} ${plural(outputs.length, 'page', 'pages')}${reset} created at ${cyan}${path.relative(process.cwd() ,outputDir)}${reset}`
+	
+	if (outputs.length <= displayMax) {
+		const list = outputs.map(
+			url => path.relative(outputDir, staticpath(url, outputDir))
+		).join(', ')
+
+		text += ` ${dim}(${list})${reset}`
+	}
+	
+	console.log(text)
+}
+
 
 
 function pageVars(currentIndex?: number, perPage?: number, totalItems?: number) {
