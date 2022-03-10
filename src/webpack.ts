@@ -100,14 +100,14 @@ export class WebpackToastPlugin {
 			const outputDir = compilation.outputOptions.path
 			const entrypoints = [...compilation.entrypoints.values()]
 			
-			const entries = Object.fromEntries(await Promise.all(entrypoints.map(async entry => {
+			const entries = Object.fromEntries(entrypoints.map(entry => {
 				const chunk = entry.getEntrypointChunk()
 				const origin = entry?.origins[0]?.request
 				const files = [...chunk.files, ...chunk.auxiliaryFiles]
 				const file = files.find(name => /\.js$/.test(name))
 				const filepath = path.resolve(outputDir, file)
 				return [origin, filepath]
-			})))
+			}))
 
 			const dependencies = Object.fromEntries(entrypoints.map(entry => {
 				const chunk = entry.getEntrypointChunk()

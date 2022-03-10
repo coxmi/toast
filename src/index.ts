@@ -2,9 +2,11 @@ import 'source-map-support/register'
 import path from 'path'
 import fs from 'fs-extra'
 import clearModule from 'clear-module'
+import { getErrorSource } from 'source-map-support'
 import { getRequestContext, updateRequestContext, cleanContext } from 'async-hooks-context'
 import { createFile, canWrite } from './files.js'
 import { filehashes, sha1, regexes, isFunction, isIterable, isArray, chunkArray, trailing } from './util.js'
+export { WebpackToastPlugin } from './webpack.js'
 
 
 type EntryMap = StringMap | string[]
@@ -27,13 +29,18 @@ type Template = {
 	userData? : any
 }
 
-type RenderFunction = (content: {}, meta : {}) => string
+type RenderFunction = (content: {}, meta : {}) => string | Promise<string>
 
 type Index = {
 	add: (key: string, value?: any) => void,
 	all: () => { [key: string]: string },
 	entries : () => Array<[string, string]>,
 	duplicates: () => string[],
+}
+
+type ErrorLog = {
+	log: (error: Error) => void,
+	check: () => void
 }
 
 
@@ -65,45 +72,43 @@ export async function toast(outputDir: string, entries: EntryMap, dependencies?:
 		origin : entrypoint,
 		importPath: isEntryMap ? entries[entrypoint] : entrypoint,
 		dependencies: dependencies[entrypoint] || [],
-		compiled : undefined,
 		hashedDependencies : undefined,
+		compiled : undefined,
 		valid : undefined,
-		userData : undefined,
+		userData : undefined
 	}))
 
-	const parallel = createParallel(templates)
 	const pageIndex: Index = createIndex()
-	const duplicateErrors: CacheMap = {}	
+	const errorLog: ErrorLog = createErrorLog()
+	const parallel = createParallel(errorLog, templates)
+	
+	// main process:
+	// hashPreviousDependencies
+	// importTemplate
+	// gatherUserTemplateData
+	// generatePages
+	// checkForDuplicates
+	// outputDryRun
+	// outputFiles
+
+	// TODO:
+	// cachePreviousDependencyHashes
+	// cacheOutputFileLocations
+
+	await parallel(template => hashPreviousDependencies(template))
+	await parallel(template => importTemplate(template))
+	await parallel(template => gatherUserTemplateData(template))
+	await parallel(template => generatePages(template, outputDir, pageIndex))
 
 	try {
-		// main process:
-		// hashPreviousDependencies
-		// importTemplate
-		// gatherUserTemplateData
-		// generatePages
-		// checkForDuplicates
-		// outputDryRun
-		// outputFiles
-		// cachePreviousDependencyHashes
-		// cacheOutputFileLocations
-
-		await parallel(template => hashPreviousDependencies(template))
-		await parallel(template => importTemplate(template))
-		await parallel(template => gatherUserTemplateData(template))
-		await parallel(template => generatePages(template, outputDir, pageIndex))
-		
 		await checkForDuplicates(pageIndex)
 		await outputDryRun(pageIndex, outputDir)
-
 		const rendered: string[] = await outputFiles(pageIndex, outputDir)
 		consoleRendered(rendered, outputDir)
 
 	} catch(error) {
-		// avoid duplicate error messages from a shared dependency (used by multiple pages)
-		// catches import and runtime errors
-		console.log(error)
-		return
-		if (!errorIsDuplicated(error, duplicateErrors)) console.log(error)
+		errorLog.log(error)
+		errorLog.check()
 		return false
 	}
 
@@ -111,12 +116,67 @@ export async function toast(outputDir: string, entries: EntryMap, dependencies?:
 }
 
 
-function createParallel(array: any[]) {
+function createParallel(errorLog: ErrorLog, array: any[]) {
 	let state = array
+
 	return async function (fn): Promise<any[]> {
-		state = await Promise.all(array.map(fn))
+		const processor = withErrorHandling(fn)
+		state = await Promise.all(array.map(processor))
+		errorLog.check()
 		return state
 	}
+
+	function withErrorHandling(fn) {
+		return async (...args) => {
+			try {
+				return await fn(...args)
+			} catch (error) {
+				errorLog.log(error)
+			}
+		}
+	}
+}
+
+
+function createErrorLog(): ErrorLog {
+
+	let duplicateErrors: CacheMap = {}
+	let errors: Error[] = []
+
+	function log(error: Error): void {
+		const id = sha1(error.message)
+		if (!duplicateErrors.hasOwnProperty(id)) {
+			duplicateErrors[id] = true
+			errors.push(error)
+		}
+	}
+
+	function outputError(error: Error): void {
+		const source = getErrorSource(error)
+		if (source) {
+			console.error()
+			console.error(source)
+		}
+		console.error(error.stack)
+	}
+
+	function check(): void {
+		// outputt multiple error messages before
+		// throwing blank error to halt parent processes
+		const error = new Error()
+		error.stack = ''
+
+		if (errors.length === 1) {
+			outputError(errors[0])
+			throw error
+		}
+		if (errors.length) {
+			errors.map(error => outputError)
+			throw error
+		}
+	}
+
+	return { log, check }
 }
 
 
@@ -212,7 +272,7 @@ async function gatherUserTemplateData(template: Template): Promise<Template> {
 	])
 
 	if (hasCollectionProp && !isIterable(collection))
-		throw new Error(`value returned from 'collection' must be iterable`)
+		throw new Error(`${template.origin}: value returned from 'collection' must be iterable`)
 
 	template.userData = { collection, content }
 	return template
@@ -326,6 +386,7 @@ async function generatePage(outputDir: string, fnUrl: RenderFunction, fnHtml: Re
     return [url, page]
 }
 
+
 function checkForDuplicates(pageIndex: Index): false {
 	const duplicates = pageIndex.duplicates()
 	if (duplicates.length > 0) {
@@ -334,6 +395,7 @@ function checkForDuplicates(pageIndex: Index): false {
 	}
 	return false
 }
+
 
 async function outputDryRun(pageIndex: Index, outputDir: string) : Promise<true> {
 
@@ -353,6 +415,7 @@ async function outputDryRun(pageIndex: Index, outputDir: string) : Promise<true>
 	return true
 }
 
+
 async function outputFiles(pageIndex: Index, outputDir: string) : Promise<string[]> {
 	
 	const files: Array<[string, string]> = pageIndex.entries()
@@ -360,7 +423,7 @@ async function outputFiles(pageIndex: Index, outputDir: string) : Promise<string
 	const output = await Promise.all(files.map(async ([ permalink, source ]) => {
 		const file = staticpath(permalink, outputDir)
 		const rendered = await createFile(outputDir, file, source)
-		return { file, permalink, rendered }
+		return { file, permalink, rendered, source }
 	}))
 
 	const rendered = output.filter(file => file.rendered).map(file => file.permalink)
@@ -388,7 +451,6 @@ function consoleRendered(outputs: string[], outputDir: string): void {
 	
 	console.log(text)
 }
-
 
 
 function pageVars(currentIndex?: number, perPage?: number, totalItems?: number) {
@@ -469,9 +531,3 @@ function fn(x) {
 }
 
 
-function errorIsDuplicated(error: Error, duplicateErrors: CacheMap): boolean {
-	const id = sha1(error.message.split('\n').slice(0, 3).join('\n'))
-	const exists = duplicateErrors.hasOwnProperty(id)
-	duplicateErrors[id] = true
-	return exists
-}
