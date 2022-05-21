@@ -6,7 +6,7 @@ import { getErrorSource } from 'source-map-support'
 import { getRequestContext, updateRequestContext, cleanContext } from 'async-hooks-context'
 import { createFile, canWrite } from './files.js'
 import { createCache, CacheType } from './cache.js'
-import { filehash, filehashSync, sha1, regexes, isFunction, isIterable, isArray, chunkArray, trailing } from './util.js'
+import { filehash, filehashSync, fileExists, sha1, regexes, isFunction, isIterable, isArray, chunkArray, trailing } from './util.js'
 
 
 const CACHE_KEY = 'toast'
@@ -143,10 +143,10 @@ export function toCompile(entrypoints: string[], forceAll: boolean = false) : To
 		const importPath = cache?.importPath
 		
 		if (!deps || !Object.keys(deps).length)	return toCompilePaths.push(origin)
-		
+
 		const matches = Object.keys(deps).map(path => (filehashSync(path) === deps[path]))
 		const changed = (matches.filter(Boolean).length !== matches.length)
-		const exists = filehashSync(importPath)
+		const exists = fileExists(importPath)
 
 		if (changed || !exists) return toCompilePaths.push(origin)
 

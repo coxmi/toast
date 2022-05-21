@@ -3,7 +3,7 @@ import { toast, toCompile } from './toast.js'
 import path from 'path'
 import glob from 'fast-glob'
 import fs from 'fs-extra'
-import { Compiler } from 'webpack'
+import { Compiler, Compilation } from 'webpack'
 import EntryPlugin from 'webpack/lib/EntryPlugin'
 
 
@@ -69,6 +69,47 @@ function absolutePaths(globs: string[], relativeTo: string): string[] {
 }
 
 
+function moduleDependencyIndex(compilation: Compilation) {
+	
+	const modules = compilation.getStats().toJson().modules
+	const modulesById = {}
+	const modulesByFullPath = {}
+	const moduleDependencies = {}
+	
+	modules.filter(module => 
+			module.id 
+			&& module.nameForCondition
+			&& module.name.substr(0, 1) === '.'
+		)
+		.map(module => {
+			modulesById[module.id] = module
+			modulesByFullPath[module.nameForCondition] = module
+			module.reasons.map(reason => {
+				if (!reason.moduleId) return
+				if (!moduleDependencies[reason.moduleId]) moduleDependencies[reason.moduleId] = {}
+				moduleDependencies[reason.moduleId][module.id] = true
+			})
+		})
+
+	const traverse = (id, processed = {}) => {
+		if (!id || processed[id]) return {}
+		processed[id] = true
+		const ids = Object.keys(moduleDependencies[id] || {})
+		ids.map(id => {
+			processed = { ...processed, ...traverse(id, processed) }
+		})
+		return processed
+	}
+
+	const list = path => {
+		const id = modulesByFullPath[path]?.id
+		return Object.keys(traverse(id)).map(id => modulesById[id].nameForCondition)
+	}
+
+	return { list }
+}
+
+
 export class WebpackToastPlugin {
 
 	private globs: string[]
@@ -93,9 +134,9 @@ export class WebpackToastPlugin {
 		webpackAddEntrypoints(toCompilePaths, compiler)
 		
 		compiler.hooks.afterEmit.tapPromise(PLUGIN_NAME, async compilation => {
-
 			const outputDir = compilation.outputOptions.path
 			const entrypoints = [...compilation.entrypoints.values()]
+			const dependencyIndex = moduleDependencyIndex(compilation)
 			
 			const compiled = Object.fromEntries(entrypoints.map(entry => {
 				const chunk = entry.getEntrypointChunk()
@@ -109,12 +150,7 @@ export class WebpackToastPlugin {
 			const dependencies = Object.fromEntries(entrypoints.map(entry => {
 				const chunk = entry.getEntrypointChunk()
 				const origin = entry?.origins[0]?.request
-				const modules = compilation.chunkGraph.getChunkModules(chunk)
-				const deps = modules
-					// @ts-ignore (userRequest not in webpack Module type)
-					.map(module => module.userRequest)
-					.filter(moduleId => fs.pathExistsSync(moduleId))
-
+				const deps = dependencyIndex.list(origin)
 				return [origin, deps]
 			}))
 

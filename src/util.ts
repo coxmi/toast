@@ -25,6 +25,15 @@ export function filehashSync(path: string): string|null {
     }
 }
 
+export function fileExists(path: string): boolean {
+    try {
+        const stats = fs.statSync(path)
+        return stats.isFile()
+    } catch {
+        return false
+    }    
+}
+
 
 export function leading(base: string, start: string): string {
     return base.startsWith(start) ? base : `${base}${start}`
