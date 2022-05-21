@@ -1,5 +1,5 @@
 
-import { toast } from './index.js'
+import { toast, toCompile } from './index.js'
 import path from 'path'
 import glob from 'fast-glob'
 import fs from 'fs-extra'
@@ -11,7 +11,8 @@ const PLUGIN_NAME = 'WebpackToastPlugin'
 
 
 interface PluginOptions {
-	pages: string|string[]
+	pages: string|string[],
+	cache?: boolean
 }
 
 
@@ -55,8 +56,6 @@ function webpackAddEntrypoints(entrypoints: string[], compiler: Compiler): void 
 	entrypoints.map(file => {
 		new EntryPlugin(compiler.context, file, path.parse(file).name).apply(compiler)
 	})
-	if (!entrypoints.length) 
-		throw new Error(`No templates found using: ${this.globs.join(', ')}`);
 }
 
 
@@ -73,56 +72,55 @@ function absolutePaths(globs: string[], relativeTo: string): string[] {
 export class WebpackToastPlugin {
 
 	private globs: string[]
+	private cache: boolean
 
-	constructor({ pages = [] }: PluginOptions) {
+	constructor({ pages = [], cache = true }: PluginOptions) {
 		this.globs = [pages].flat()
+		this.cache = Boolean(cache)
 	}
 
 	apply(compiler: Compiler) {
 
-		const pages = absolutePaths(this.globs, compiler.context)
-
 		webpackEditConfiguration(compiler)
-		webpackAddEntrypoints(pages, compiler)
-
-		// patch addEntry function to test if cache has changed
-		// compiler.hooks.compilation.tap(PLUGIN_NAME, compilation => {
-		// 	const webpackAddEntry = compilation.addEntry.bind(compilation)
-		// 	compilation.addEntry = (context, dep, name, done) => {
-		// 		console.log(compilation.moduleGraph.getModule(dep))
-		// 		webpackAddEntry(context, dep, name, done)
-		// 	}
-		// })
-
-		// after emit, get entrypoint info and compile routes
+		
+		const pages = absolutePaths(this.globs, compiler.context)
+		if (!pages.length) 
+			throw new Error(`No templates found using: ${this.globs.join(', ')}`)
+		
+		// only send uncached routes off to webpack, unless we're in watch mode
+		const watching = compiler.options.watch || compiler.watchMode || false
+		const { toCompilePaths, cached, cachedDependencies } = toCompile(pages, watching || !this.cache)
+		webpackAddEntrypoints(toCompilePaths, compiler)
+		
 		compiler.hooks.afterEmit.tapPromise(PLUGIN_NAME, async compilation => {
-			
+
 			const outputDir = compilation.outputOptions.path
 			const entrypoints = [...compilation.entrypoints.values()]
 			
-			const entries = Object.fromEntries(entrypoints.map(entry => {
+			const compiled = Object.fromEntries(entrypoints.map(entry => {
 				const chunk = entry.getEntrypointChunk()
 				const origin = entry?.origins[0]?.request
 				const files = [...chunk.files, ...chunk.auxiliaryFiles]
 				const file = files.find(name => /\.js$/.test(name))
-				const filepath = path.resolve(outputDir, file)
-				return [origin, filepath]
+				const compiledPath = path.resolve(outputDir, file)
+				return [origin, compiledPath]
 			}))
 
 			const dependencies = Object.fromEntries(entrypoints.map(entry => {
 				const chunk = entry.getEntrypointChunk()
 				const origin = entry?.origins[0]?.request
 				const modules = compilation.chunkGraph.getChunkModules(chunk)
-
-				const dependencies = modules
+				const deps = modules
 					// @ts-ignore (userRequest not in webpack Module type)
 					.map(module => module.userRequest)
 					.filter(moduleId => fs.pathExistsSync(moduleId))
 
-				return [origin, dependencies]
+				return [origin, deps]
 			}))
 
-			await toast(outputDir, entries, dependencies)
+			const entries = { ...cached, ...compiled }
+			const deps = { ...cachedDependencies, ...dependencies }
+			await toast(outputDir, entries, deps)
 		})
 	}
 }

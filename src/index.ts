@@ -5,8 +5,11 @@ import clearModule from 'clear-module'
 import { getErrorSource } from 'source-map-support'
 import { getRequestContext, updateRequestContext, cleanContext } from 'async-hooks-context'
 import { createFile, canWrite } from './files.js'
-import { filehashes, sha1, regexes, isFunction, isIterable, isArray, chunkArray, trailing } from './util.js'
-export { WebpackToastPlugin } from './webpack.js'
+import { createCache, CacheType } from './cache.js'
+import { filehash, filehashSync, sha1, regexes, isFunction, isIterable, isArray, chunkArray, trailing } from './util.js'
+
+
+const CACHE_KEY = 'toast'
 
 
 type EntryMap = StringMap | string[]
@@ -19,11 +22,17 @@ type DependencyMap = {
 	[key: string]: string[]
 }
 
+type ToCompile = {
+	toCompilePaths : string[], 
+	cached : EntryMap,
+	cachedDependencies : DependencyMap
+}
+
 type Template = {
 	origin : string,
 	importPath : string,
 	dependencies : string[],
-	hashedDependencies : StringMap,
+	dependenciesHashed : StringMap,
 	compiled? : any,
 	valid? : boolean,
 	userData? : any
@@ -51,6 +60,8 @@ export function context() {
 
 export async function toast(outputDir: string, entries: EntryMap, dependencies?: DependencyMap) {
 
+
+
 	// possible hooks:
 		// beforeSingle
 		// single
@@ -72,18 +83,19 @@ export async function toast(outputDir: string, entries: EntryMap, dependencies?:
 		origin : entrypoint,
 		importPath: isEntryMap ? entries[entrypoint] : entrypoint,
 		dependencies: dependencies[entrypoint] || [],
-		hashedDependencies : undefined,
+		dependenciesHashed : undefined,
 		compiled : undefined,
 		valid : undefined,
 		userData : undefined
 	}))
 
+	const cache: CacheType = createCache(CACHE_KEY)
 	const pageIndex: Index = createIndex()
 	const errorLog: ErrorLog = createErrorLog()
 	const parallel = createParallel(errorLog, templates)
 	
 	// main process:
-	// hashPreviousDependencies
+	// hashDependencies
 	// importTemplate
 	// gatherUserTemplateData
 	// generatePages
@@ -92,10 +104,9 @@ export async function toast(outputDir: string, entries: EntryMap, dependencies?:
 	// outputFiles
 
 	// TODO:
-	// cachePreviousDependencyHashes
 	// cacheOutputFileLocations
 
-	await parallel(template => hashPreviousDependencies(template))
+	await parallel(template => hashDependencies(template))
 	await parallel(template => importTemplate(template))
 	await parallel(template => gatherUserTemplateData(template))
 	await parallel(template => generatePages(template, outputDir, pageIndex))
@@ -112,7 +123,41 @@ export async function toast(outputDir: string, entries: EntryMap, dependencies?:
 		return false
 	}
 
+	await parallel(template => cacheDependencyHashes(template, cache))
 	return true
+}
+
+
+export function toCompile(entrypoints: string[], forceAll: boolean = false) : ToCompile {
+
+	const toCompilePaths: string[] = []
+	const cached: EntryMap = {}
+	const cachedDependencies: DependencyMap = {}
+	
+	entrypoints.forEach(origin => {
+
+		if (forceAll) return toCompilePaths.push(origin)
+
+		const cache = getCache(origin)
+		if (!cache) return toCompilePaths.push(origin)
+		
+		const deps = cache?.dependenciesHashed
+		const importPath = cache?.importPath
+		const matches = Object.keys(deps).map(path => (filehashSync(path) === deps[path]))
+		const changed = (matches.filter(Boolean).length !== matches.length)
+		const exists = filehashSync(importPath)
+
+		if (changed || !exists) return toCompilePaths.push(origin)
+
+		cached[origin] = importPath
+		cachedDependencies[origin] = deps && Object.keys(deps) || []
+	})
+
+	return { 
+		toCompilePaths, 
+		cached,
+		cachedDependencies
+	}
 }
 
 
@@ -121,7 +166,7 @@ function createParallel(errorLog: ErrorLog, array: any[]) {
 
 	return async function (fn): Promise<any[]> {
 		const processor = withErrorHandling(fn)
-		state = await Promise.all(array.map(processor))
+		state = await Promise.all(state.map(processor))
 		errorLog.check()
 		return state
 	}
@@ -201,9 +246,37 @@ function createIndex(): Index {
 }
 
 
-async function hashPreviousDependencies(template: Template): Promise<Template> {
-	template.hashedDependencies = await filehashes(template.dependencies)
+async function hashDependencies(template: Template): Promise<Template> {	
+	const promises = template.dependencies.map(async path => {
+	    const hash: string|null = await filehash(path)
+	    return [path, hash]
+	})
+	const entries = (await Promise.all(promises)).filter(([_, hash]) => !!hash)
+	const hashes = Object.fromEntries(entries)
+	template.dependenciesHashed = hashes
 	return template
+}
+
+
+async function cacheDependencyHashes(template: Template, cache: CacheType) : Promise<Template> {
+	await cache.set(template.origin, {
+		origin : template.origin,
+		importPath : template.importPath,
+		dependenciesHashed : template.dependenciesHashed
+	})
+	return template
+}
+
+
+function getCache(origin: string) {
+	const cache: CacheType = createCache(CACHE_KEY)
+	const object = cache.getSync(origin)
+	return object
+}
+
+function clearCache() {
+	const cache: CacheType = createCache(CACHE_KEY)
+	cache.clear()
 }
 
 
@@ -212,7 +285,7 @@ async function importTemplate(template: Template): Promise<Template> {
 	if (!exists) throw new Error(`No module found at "${template.importPath}"`)
 
 	clearModule(template.importPath)
-	const compiled = await await import(template.importPath)
+	const compiled = await import(template.importPath)
 	const invalidations = invalidateTemplate(compiled)
 
 	template.compiled = compiled
@@ -329,6 +402,8 @@ async function generatePages(template: Template, outputDir: string, pageIndex: I
 			pageIndex.add(url, page)
 		}))
 	}
+
+	return template
 }
 
 

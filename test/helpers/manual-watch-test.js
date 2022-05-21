@@ -1,16 +1,20 @@
 
 const webpack = require('webpack')
 const path = require('path')
-const Plugin = require('./../../dist/webpack.js')
+const Plugin = require('./../../dist/webpack.js').WebpackToastPlugin
+
 
 const fixture = (...paths) => path.resolve(__dirname, './../fixtures/', ...paths)
 
 function watch({ name, config }) {
+    
     const outputDir = fixture('dist', name)
+
     compiler = webpack({
         mode: 'development',
         devtool: 'source-map',
         watch: true,
+        context: outputDir,
         stats: {
             all: false,
             assets: true,
@@ -25,10 +29,6 @@ function watch({ name, config }) {
             filename: '[name].js',
         },
         ...config
-    })
-
-    compiler.watch({}, (err, stats) => {
-        if (err) console.log(err)
     })
 }
 

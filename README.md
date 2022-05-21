@@ -163,10 +163,8 @@ export const html = (content, meta) =>
 | `collection` | (optional) Fetch a set of items<br>Each item generates a page | `async () => []`<br>`[]` |
 | `perPage` | (optional) split a `collection` into chunks for pagination | `number` |
 
-<br>
-#### `html` and `url` function arguments
 
-
+### `html` and `url` function arguments
 
 #### `content`
 

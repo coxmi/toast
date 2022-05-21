@@ -7,19 +7,18 @@ export function sha1(string: string): string {
 }
 
 
-export async function filehashes(paths: string[]) : Promise<StringMap> {
-    const promises = paths.map(async path => {
-        const hash = await filehash(path)
-        return [path, hash]
-    })
-    const entries = await Promise.all(promises)
-    return Object.fromEntries(entries)
-}
-
-
 export async function filehash(path: string): Promise<string|null> {
     try {
         const contents = await fs.readFile(path, 'utf8')
+        return sha1(contents)
+    } catch(error) {
+        return null
+    }
+}
+
+export function filehashSync(path: string): string|null {
+    try {
+        const contents = fs.readFileSync(path, 'utf8')
         return sha1(contents)
     } catch(error) {
         return null

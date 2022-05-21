@@ -16,7 +16,7 @@ async function generate({ name = '', config = {} }) {
 
     const outputDir = fixture('dist', name)
     
-    fs.emptyDir(outputDir)
+    await fs.emptyDir(outputDir)
 
     const results = await bundle({
         output: {
