@@ -1,3 +1,4 @@
+import { context } from './../../../dist/index.js'
 
 const timeout = s => new Promise(resolve => setTimeout(resolve, s))
 

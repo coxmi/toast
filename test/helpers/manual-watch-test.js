@@ -46,7 +46,7 @@ watch({
         },
         plugins: [
             new Plugin({ 
-                pages: fixture('route-dynamic/template.js') 
+                templates: fixture('route-dynamic/template.js') 
             })
         ]
     }

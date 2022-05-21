@@ -6,7 +6,7 @@
 
 ### A really tiny static site generator plugin for webpack
 
-Turn external data sources into a static site without specifying your development environment. Transpile, generate, or concatenate your templates however you want, toast is just a step in your build process. You're not tied in to using today’s framework of choice, so you can use es6 template literals for your `sitemap.xml`, `jsx` for your `<head>`, or `ejs` for your `<body>`.
+Turn external data sources into a static site without specifying your development environment. Transpile, generate, or concatenate your templates however you want, toast is just a step in your build process. You’re not tied to using today’s framework of choice, so you can use es6 template literals for your `sitemap.xml`, `jsx` for your `<head>`, or `ejs` for your `<body>`.
 
 - bring your own transpilation (using [webpack](https://webpack.js.org/))
 - just return a `string` in your template render function
@@ -17,7 +17,7 @@ Turn external data sources into a static site without specifying your developmen
 ## Usage
 
 ```js
-// grab your content from anywhere
+// use javascript to get your content from anywhere you like
 export const content = { title: 'Hello, World!' }
 
 // set the url of your page
@@ -47,7 +47,7 @@ Add the plugin to your `webpack.config.js`:
 
 
 ```js
-const { WebpackToastPlugin } = require('toast-static')
+const { WebpackToastPlugin } = require('toast-static/webpack')
 
 module.exports = {
     output: {
@@ -56,8 +56,7 @@ module.exports = {
     },
     plugins: [
         new WebpackToastPlugin({ 
-            // your template files (takes a glob, path, or array)
-            pages: './pages/**.js'
+            templates: './templates/**.js' // glob, path, or array
         })
     ]
 }
@@ -67,7 +66,7 @@ module.exports = {
 
 ## Templates
 
-At its most basic, a template is a simple js file with some exports. 
+A template is just a simple js file with some exports. 
 
 `pages/latest.js`:
 
@@ -168,11 +167,11 @@ export const html = (content, meta) =>
 
 #### `content`
 
-is set to the value exported by either your `content` or `collection` function in the template (when the `collection` export is used, the `content` export is ignored).
+`content` is the value exported by your `content` or `collection` function in the template, whichever takes precedence.
 
 #### `meta`
 
-is an object with the following properties:
+`meta` is an object with the following properties:
 
 - `url`: the pretty url returned from your `url` function (e.g. `/`)
 - `output`: the path to the file created (e.g. `/index.html`)
@@ -190,13 +189,13 @@ is an object with the following properties:
 - `lastItemOnPage`: the first item on the current page (counting from 1)
 
 
-### Use the `content` and `meta` functions anywhere
+### Page context (accessing `content` and `meta`)
 
-#### `global.context()` 
-
-Call the `context()` function anywhere within your render function’s stack (including async components, or deep within the render tree) to return an object containing the `content` and `meta` keys. 
+Calling `context()` within your template functions gives you access to the `content` and `meta` variables, without having to pass them through each function call (including within async components, or deep within the render tree)
 
 ```js
+import { context } from 'toast-static'
+
 const { content, meta } = context()
 ```
 

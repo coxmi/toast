@@ -1,5 +1,5 @@
 
-import { toast, toCompile } from './index.js'
+import { toast, toCompile } from './toast.js'
 import path from 'path'
 import glob from 'fast-glob'
 import fs from 'fs-extra'
@@ -11,7 +11,7 @@ const PLUGIN_NAME = 'WebpackToastPlugin'
 
 
 interface PluginOptions {
-	pages: string|string[],
+	templates: string|string[],
 	cache?: boolean
 }
 
@@ -74,8 +74,8 @@ export class WebpackToastPlugin {
 	private globs: string[]
 	private cache: boolean
 
-	constructor({ pages = [], cache = true }: PluginOptions) {
-		this.globs = [pages].flat()
+	constructor({ templates = [], cache = true }: PluginOptions) {
+		this.globs = [templates].flat()
 		this.cache = Boolean(cache)
 	}
 
@@ -83,13 +83,13 @@ export class WebpackToastPlugin {
 
 		webpackEditConfiguration(compiler)
 		
-		const pages = absolutePaths(this.globs, compiler.context)
-		if (!pages.length) 
+		const templates = absolutePaths(this.globs, compiler.context)
+		if (!templates.length) 
 			throw new Error(`No templates found using: ${this.globs.join(', ')}`)
 		
 		// only send uncached routes off to webpack, unless we're in watch mode
 		const watching = compiler.options.watch || compiler.watchMode || false
-		const { toCompilePaths, cached, cachedDependencies } = toCompile(pages, watching || !this.cache)
+		const { toCompilePaths, cached, cachedDependencies } = toCompile(templates, watching || !this.cache)
 		webpackAddEntrypoints(toCompilePaths, compiler)
 		
 		compiler.hooks.afterEmit.tapPromise(PLUGIN_NAME, async compilation => {

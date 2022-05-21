@@ -67,7 +67,7 @@ snapshot({
         },
         plugins: [
             new WebpackToastPlugin({ 
-                pages: fixture('route-assets/*.js')
+                templates: fixture('route-assets/*.js')
             })
         ]
     }
@@ -78,7 +78,7 @@ snapshot({
     config: {
         plugins: [
             new WebpackToastPlugin({ 
-                pages: fixture('route-cjs/template.js') 
+                templates: fixture('route-cjs/template.js') 
             })
         ]
     }
@@ -89,7 +89,7 @@ snapshot({
     config: {
         plugins: [
             new WebpackToastPlugin({ 
-                pages: fixture('route-context/*.js') 
+                templates: fixture('route-context/*.js') 
             })
         ]
     }
@@ -100,7 +100,7 @@ snapshot({
     config: {
         plugins: [
             new WebpackToastPlugin({ 
-                pages: fixture('route-dynamic/template.js') 
+                templates: fixture('route-dynamic/template.js') 
             })
         ]
     }
@@ -111,7 +111,7 @@ snapshot({
     config: {
         plugins: [
             new WebpackToastPlugin({ 
-                pages: fixture('route-esm/template-*.js')
+                templates: fixture('route-esm/template-*.js')
             })
         ]
     }
@@ -122,7 +122,7 @@ snapshot({
     config: {
         plugins: [
             new WebpackToastPlugin({ 
-                pages: fixture('route-external/*.js')
+                templates: fixture('route-external/*.js')
             })
         ]
     }
@@ -142,7 +142,7 @@ snapshot({
         },
         plugins: [
             new WebpackToastPlugin({ 
-                pages: fixture('route-jsx/*-*.js') 
+                templates: fixture('route-jsx/*-*.js') 
             })
         ]
     }
@@ -153,7 +153,7 @@ snapshot({
     config: {
         plugins: [
             new WebpackToastPlugin({ 
-                pages: fixture('route-paged/*.js') 
+                templates: fixture('route-paged/*.js') 
             })
         ]
     }

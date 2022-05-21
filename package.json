@@ -20,7 +20,11 @@
     "dist/*.js",
     "dist/*.js.map"
   ],
-  "main": "dist/webpack.js",
+  "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./webpack": "./dist/webpack.js"
+  },
   "scripts": {
     "build": "tsc; babel src --out-dir dist --extensions '.ts,.js,.jsx' --source-maps",
     "watch": "tsc --watch & babel src --out-dir dist --extensions '.ts,.js,.jsx' --source-maps --watch",
