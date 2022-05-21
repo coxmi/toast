@@ -207,7 +207,7 @@ function createErrorLog(): ErrorLog {
 	}
 
 	function check(): void {
-		// outputt multiple error messages before
+		// output multiple error messages before
 		// throwing blank error to halt parent processes
 		const error = new Error()
 		error.stack = ''
