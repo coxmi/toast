@@ -13,8 +13,9 @@ export type CacheType = {
 }
 
 export const createCache = (subdirectory: string = ''): CacheType => {
-	 
-	const cacheDir = path.join(findCacheDir({ name : subdirectory }) || '.')
+	
+	const defaultDir = path.resolve('.cache', subdirectory || '')
+	const cacheDir = findCacheDir({ name : subdirectory }) || defaultDir
 
 	async function set(key:string, contents:any): Promise<void> {
 		const filePath = path.join(cacheDir, `${sha1(key)}.json`)
